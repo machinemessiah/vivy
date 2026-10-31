@@ -96,12 +96,16 @@ export default function App() {
 			hideTimeout = window.setTimeout(() => setUiVisible(false), IDLE_HIDE_MS);
 		};
 		onActivity();
-		window.addEventListener("mousemove", onActivity);
-		window.addEventListener("mousedown", onActivity);
+		//window.addEventListener("mousemove", onActivity);
+		//window.addEventListener("mousedown", onActivity);
+		containerRef.current?.addEventListener("mousemove", onActivity);
+		containerRef.current?.addEventListener("mousedown", onActivity);
 		return () => {
 			window.clearTimeout(hideTimeout);
-			window.removeEventListener("mousemove", onActivity);
-			window.removeEventListener("mousedown", onActivity);
+			//window.removeEventListener("mousemove", onActivity);
+			//window.removeEventListener("mousedown", onActivity);
+			containerRef.current?.removeEventListener("mousemove", onActivity);
+			containerRef.current?.removeEventListener("mousedown", onActivity);
 		};
 	}, []);
 

@@ -3,7 +3,7 @@
 // It has no frame in this client, so it is moved by a drag region and sized with resizeTo, the way
 // Spotify's own miniplayer is.
 
-export const IDLE_HIDE_MS = 2500;
+export const IDLE_HIDE_MS = 750; ///2500;
 const PLACE_KEY = "vivy:pip-place";
 const SMALLEST = 200;
 
