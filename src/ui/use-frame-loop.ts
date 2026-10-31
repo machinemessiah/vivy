@@ -3,7 +3,7 @@ import { TrackAudioData } from "../audio-data";
 import { AudioSync, createSmoothClock } from "../audio-sync";
 import { DEV } from "../build-stamp";
 import { Rgb } from "../colours";
-import { createFramePacer, frameRate } from "../frame-rate";
+import { createFramePacer, frameRate, renderSize } from "../frame-rate";
 import { Preset, PresetFrame } from "../presets";
 import { createMiniWindow } from "./mini-window";
 
@@ -12,8 +12,8 @@ import { createMiniWindow } from "./mini-window";
 export function useFrameLoop(
 	canvasRef: RefObject<HTMLCanvasElement>,
 	presetRef: MutableRefObject<Preset | undefined>,
-	audioRef: MutableRefObject<TrackAudioData | null>,
-	coverRef: MutableRefObject<Rgb[]>,
+	audioRef: { readonly current: TrackAudioData | null },
+	coverRef: { readonly current: Rgb[] },
 	setMiniOpen: (open: boolean) => void
 ) {
 	const toggleRef = useRef(() => {});
@@ -28,8 +28,7 @@ export function useFrameLoop(
 		// Spotify's window, or the mini window
 		const host = () => canvas.ownerDocument.defaultView ?? window;
 		const resize = () => {
-			const w = Math.max(1, Math.floor(canvas.clientWidth * host().devicePixelRatio));
-			const h = Math.max(1, Math.floor(canvas.clientHeight * host().devicePixelRatio));
+			const { w, h } = renderSize(canvas, host().devicePixelRatio);
 			// setting a canvas's size wipes it, even to the size it already has
 			if (w === canvas.width && h === canvas.height) return;
 			// paused, nothing redraws: carry the picture over, stretched, instead of leaving black

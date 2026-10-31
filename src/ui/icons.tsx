@@ -45,10 +45,13 @@ export const ICON_NEXT = (
 		<path d="M5.5 5.5v13L15 12z" fill="currentColor" />
 	</>
 );
+const HEART = "M12 19.5l-6.6-6.6a4.2 4.2 0 0 1 6-5.9l.6.6.6-.6a4.2 4.2 0 0 1 6 5.9z";
+export const ICON_HEART = <path d={HEART} />;
+export const ICON_HEART_FILLED = <path d={HEART} fill="currentColor" />;
 
 export function IconButton({ label, icon, active, small, onClick }: { label: string; icon: React.ReactNode; active?: boolean; small?: boolean; onClick: () => void }) {
 	return (
-		<button className={`vivy-icon${small ? " small" : ""}${active ? " active" : ""}`} title={label} aria-label={label} aria-pressed={!!active} onClick={onClick}>
+		<button className={`vivy-icon${small ? " small" : ""}${active ? " active" : ""}`} title={label} aria-label={label} aria-pressed={active}onClick={onClick}>
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
 				{icon}
 			</svg>
