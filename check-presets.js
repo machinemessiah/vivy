@@ -305,6 +305,45 @@ for (const audio of [fakeAudio(7), null]) {
 	}
 }
 
+// Switches: every feature of a preset on at once (some are off by default), at its defaults and at every knob's max;
+// no NaN, and a paused frame still identical to the next.
+{
+	const tune = require( path.join( OUT, "presets", "tune.js" ) );
+	for ( const definition of PRESETS ) {
+		const t = tune.tuningOf( definition.id );
+		if ( !t || t.features.length === 0 ) continue;
+		const was = t.features.map( f => f.on );
+		for ( const end of ["default", "max"] ) {
+			if ( end === "max" ) for ( const k of t.knobs ) tune.setKnob( definition.id, k.key, k.max );
+			t.features.forEach( f => ( f.on = true ) );
+			const preset = definition.create();
+			const ctx = createContext();
+			label = `${definition.id}/all switches on, knobs at ${end}`;
+			checking = true;
+			const audio = fakeAudio( 7 );
+			let at = 3;
+			for ( let f = 0; f < 240; f++ ) {
+				at += 1 / 60;
+				preset.draw( { ctx, width: WIDTH, height: HEIGHT, progressSec: at, isPlaying: true, audio, colorRgb: { r: 30, g: 215, b: 96 } } );
+				checkDiagnostics( `${label} frame ${f}` );
+			}
+			const still = () => preset.draw( { ctx, width: WIDTH, height: HEIGHT, progressSec: at, isPlaying: false, audio, colorRgb: { r: 30, g: 215, b: 96 } } );
+			still();
+			log = [];
+			still();
+			const first = log.join( "\n" );
+			log = [];
+			still();
+			assert.strictEqual( log.join( "\n" ), first, `${label}: kept animating while paused` );
+			checking = false;
+			preset.dispose();
+		}
+		tune.resetKnobs( definition.id );
+		t.features.forEach( ( f, i ) => ( f.on = was[i] ) );
+		console.log( `ok  ${definition.id} switches (${t.features.length}, all on)` );
+	}
+}
+
 // Colours: every source and gradient over dark, grey and light palettes and picked colours; no NaN.
 {
 	const colours = require(path.join(OUT, "colours.js"));
@@ -449,7 +488,11 @@ for (const warning of warnings) console.log(`warn  ${warning}`);
 	const { tuningOf } = require(path.join(OUT, "presets", "tune.js"));
 	const { coloursOf } = require(path.join(OUT, "colours.js"));
 	const english = { ...app.EN };
+	// presets still being shaped: their knob, hint and switch text stays in English (the panel falls back to it)
+	// until they settle, so the six tables are not rewritten with every change
+	const UNTRANSLATED = ["terrain"];
 	for (const { id } of PRESETS) {
+		if ( UNTRANSLATED.includes( id ) ) continue;
 		const tuning = tuningOf(id);
 		for (const k of tuning?.knobs ?? []) {
 			english[`${id}.${k.key}`] = k.label;

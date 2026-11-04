@@ -2,6 +2,7 @@ import { MutableRefObject, RefObject, useCallback, useEffect, useRef } from "rea
 import { TrackAudioData } from "../audio-data";
 import { AudioSync, createSmoothClock } from "../audio-sync";
 import { DEV } from "../build-stamp";
+import { report } from "../dev";
 import { Rgb } from "../colours";
 import { createFramePacer, frameRate, renderSize } from "../frame-rate";
 import { Preset, PresetFrame } from "../presets";
@@ -58,6 +59,22 @@ export function useFrameLoop(
 		let disposed = false;
 		let drawFailed = false;
 		const pace = createFramePacer();
+		// dev builds: how long draw() took on the CPU and how far apart the drawn frames were, every 240 frames.
+		// A 2D canvas defers its raster work, so the frame interval is the honest number; draw time alone understates.
+		const probe = { n: 0, draw: 0, drawMax: 0, gap: 0, gapMax: 0, last: 0 };
+		const probeFrame = (drawMs: number, now: number) => {
+			if (probe.last > 0) {
+				const gap = now - probe.last;
+				probe.gap += gap;
+				probe.gapMax = Math.max(probe.gapMax, gap);
+			}
+			probe.last = now;
+			probe.draw += drawMs;
+			probe.drawMax = Math.max(probe.drawMax, drawMs);
+			if (++probe.n < 240) return;
+			report({ frames: probe.n, drawMs: +(probe.draw / probe.n).toFixed(2), drawMaxMs: +probe.drawMax.toFixed(1), gapMs: +(probe.gap / probe.n).toFixed(2), gapMaxMs: +probe.gapMax.toFixed(1), canvas: `${canvas.width}x${canvas.height}` });
+			Object.assign(probe, { n: 0, draw: 0, drawMax: 0, gap: 0, gapMax: 0 });
+		};
 
 		const render = () => {
 			if (!pace(performance.now(), frameRate())) return schedule();
@@ -84,6 +101,7 @@ export function useFrameLoop(
 				palette: shown.slice(0, 3),
 				coverColours: shown
 			};
+			const drawStart = DEV ? performance.now() : 0;
 			try {
 				presetRef.current?.draw(frame);
 			} catch (err) {
@@ -91,6 +109,7 @@ export function useFrameLoop(
 				if (!drawFailed) console.error("[visualizer] draw failed", err);
 				drawFailed = true;
 			}
+			if (DEV && isPlaying) probeFrame(performance.now() - drawStart, drawStart);
 			schedule();
 		};
 		// a window nobody can see gets no animation frames, so the frame clock is the canvas's window

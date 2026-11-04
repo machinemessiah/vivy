@@ -3,6 +3,9 @@
 ## Unreleased
 
 - vivy follows Spotify's language: Russian, Spanish, Brazilian Portuguese, German, Japanese and Turkish, English otherwise (#7). Preset names stay as they are.
+- Ridgeline: a "strands" switch (key 8) splits the live line into its twelve notes, each in its own colour, and a "notes" switch (key 9) colours the line by the note sounding. New knobs under Strands and Style: spread, wave, light, note colour, fill, curve, bend, bank, fade, timbre hill, lane order, pulse.
+- Terrain (experimental): the song as a lit 3D landscape drawn on the GPU (WebGL2), with lines on every row and along every note's lane. Its knob text is English only for now.
+- Faster: changing a knob no longer rebuilds the whole Ridgeline cache, the glow halo scales with the picture size, and far rows are thinned.
 
 ## 0.3.0 — 2026-10-31
 

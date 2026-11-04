@@ -5,8 +5,8 @@
 import { createNoise2D } from "simplex-noise";
 import { createGlow, createKeyHue, keyHueAt } from "./effects";
 import { createConductor } from "./conductor";
-import { accentLightness, colourSettings, familyHue, GREY, hslToRgb, palette, paletteAt } from "../colours";
-import { sampleCurve, segmentAt, TrackAudioData } from "../audio-data";
+import { accentLightness, colourSettings, familyHue, GREY, hslToRgb, palette, paletteAt, Rgb } from "../colours";
+import { rankOf, sampleCurve, segmentAt, TrackAudioData } from "../audio-data";
 import { Preset, PresetDefinition, rgbString } from "./types";
 import { tune, tuneFeatures, tuneVersion } from "./tune";
 
@@ -18,7 +18,10 @@ const FEATURES = {
 	lit: { name: "lit mountains", on: true },
 	camera: { name: "camera", on: true },
 	dust: { name: "dust", on: true },
-	accents: { name: "rows on accents", on: true }
+	accents: { name: "rows on accents", on: true },
+	// off by default: both change the look of the line at "now"
+	strands: { name: "pitch strands", on: false },
+	notes: { name: "colour by note", on: false }
 };
 const FEATURE_KEYS = Object.values(FEATURES);
 tuneFeatures("ridge", FEATURE_KEYS);
@@ -29,6 +32,7 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
 		const feature = detail && detail.preset === ridgePreset.id ? FEATURE_KEYS[detail.n - 1] : undefined;
 		if (!feature) return;
 		feature.on = !feature.on;
+		if (typeof Spicetify !== "undefined") Spicetify.showNotification(`Ridgeline ${detail!.n}: ${feature.name} ${feature.on ? "ON" : "off"}`);
 	});
 }
 
@@ -119,7 +123,19 @@ const K = tune("ridge", {
 	GLOW: [1, 0, 2.5, "halo strength", "look"],
 	LINE: [1, 0.4, 3, "thickness of the bright line"],
 	DUST_LIGHT: [1, 0, 3, "dust brightness"],
-	SWAY: [1, 0, 3, "camera sway"]
+	SWAY: [1, 0, 3, "camera sway"],
+	STRAND_SPREAD: [0.4, 0, 1, "how far a strand spreads", "strands"],
+	STRAND_WAVE: [0, 0, 1, "how much a strand rings as a wave"],
+	STRAND_LIGHT: [1, 0, 3, "strand brightness"],
+	NOTE_COLOUR: [1, 0, 1, "how far colour follows the note"],
+	FILL: [1, 0, 1, "how solid the mountains are", "style"],
+	CURVE: [0, -1, 1, "planet curvature"],
+	BEND: [0, 0, 1, "how the terrain winds"],
+	BANK: [0, 0, 1, "how far the view rolls"],
+	FADE_AMOUNT: [0, 0, 1, "how far intro and outro fade the view"],
+	TIMBRE_HILL: [0, 0, 1, "how far timbre reshapes the hills"],
+	LANE_ORDER: [0, 0, 1, "fifths to semitone order"],
+	PULSE: [0, 0, 1, "beat swell in the terrain"]
 	},
 	// what each one does, shown beside the panel on hover
 	{
@@ -153,7 +169,19 @@ const K = tune("ridge", {
 		GLOW: "The soft halo around everything bright. Zero is a clean, sharp picture; higher is hazier and dreamier.",
 		LINE: "How thick the bright line of the current moment is.",
 		DUST_LIGHT: "How bright the specks flying past are. Zero hides them; higher makes a snowstorm of light on loud parts.",
-		SWAY: "How far the view drifts from side to side. Zero keeps it dead centre; higher swings it wider and the terrain bends with it."
+		SWAY: "How far the view drifts from side to side. Zero keeps it dead centre; higher swings it wider and the terrain bends with it.",
+		STRAND_SPREAD: "How wide each note's strand is (key 8). Zero keeps the narrow hill the mountains use; higher makes broad bumps that overlap and cross each other.",
+		STRAND_WAVE: "Turns each strand from a hill into a wave, one per note at its true pitch ratio. At the top the twelve waves add up to the sound of the chord itself.",
+		STRAND_LIGHT: "How bright the twelve note strands are. Zero hides them.",
+		NOTE_COLOUR: "How far the bright line takes the colour of the note under it (key 9). Zero keeps one colour; higher gives every note its own colour from the palette.",
+		FILL: "How solid the mountains are. At 1 each row hides the ones behind it; lower lets the rows behind show through; zero leaves only glowing lines.",
+		CURVE: "Bends the ground away like a planet. Above zero the far rows drop away over a curved horizon; below zero they rise into a bowl.",
+		BEND: "Makes the terrain wind from side to side as it comes, like a road through the song. Zero keeps it straight.",
+		BANK: "How far the whole view rolls from side to side with the camera sway. Zero keeps the horizon level.",
+		FADE_AMOUNT: "How far the track's own fade-in and fade-out show: the horizon glow dims and the camera sinks into an outro and rises from an intro. Zero ignores them.",
+		TIMBRE_HILL: "Lets the sound's brightness reshape its hills. Dull sounds make broad rolling hills; bright, ringing ones make thin spikes. Zero keeps one width.",
+		LANE_ORDER: "Where the twelve notes stand across the terrain. Zero is the circle of fifths, so a chord is one mountain; one is by semitone, so a chord spreads out.",
+		PULSE: "Makes the rows on the beat a little taller than the ones between, so the beat rolls through the terrain toward you. Zero keeps them even."
 	},
 	// shown without "More"; the rest is for whoever wants to dig
 	["FUTURE_BEATS", "HORIZON", "RIDGE", "HALF_WIDTH", "SMOOTH", "ECHO_BEATS", "SKY_BRIGHT", "GLOW"]
@@ -177,19 +205,71 @@ const BLACK = { r: 0, g: 0, b: 0 };
 const ACROSS = new Float32Array(POINTS);
 const BLUR = new Float32Array(POINTS);
 const HILLS = new Float32Array(12 * POINTS);
+// the same hills narrower and wider, for TIMBRE_HILL: a ringing sound is drawn with the narrow ones, a dull one with the wide
+const HILLS_NARROW = new Float32Array(12 * POINTS);
+const HILLS_WIDE = new Float32Array(12 * POINTS);
 for (let i = 0; i < POINTS; i++) ACROSS[i] = -1 + (2 * i) / (POINTS - 1);
+// which of the 12 places across the terrain a note stands in (0..11, left to right): in fifths, C G D A E B F# C# G# D# A# F,
+// so a triad is three neighbouring lanes; LANE_ORDER takes it to semitones. Between the two it is a place in between.
+const lanePos = (k: number) => ((k * 7) % 12) * (1 - K.LANE_ORDER) + k * K.LANE_ORDER;
+const laneOf = (k: number) => -K.LANE_SPAN + (2 * K.LANE_SPAN * lanePos(k)) / 11;
 // a function: turning a knob redoes the table
 const setHills = () => {
 	for (let k = 0; k < 12; k++) {
-		// in fifths: C G D A E B F# C# G# D# A# F, so a triad is three neighbouring lanes
-		const lane = -K.LANE_SPAN + (2 * K.LANE_SPAN * ((k * 7) % 12)) / 11;
+		const lane = laneOf(k);
 		for (let i = 0; i < POINTS; i++) {
-			const d = (ACROSS[i] - lane) / K.HILL;
+			const x = ACROSS[i] - lane;
+			const d = x / K.HILL;
 			HILLS[k * POINTS + i] = Math.exp(-d * d);
+			HILLS_NARROW[k * POINTS + i] = Math.exp(-d * d * 2.8);
+			HILLS_WIDE[k * POINTS + i] = Math.exp((-d * d) / 2.8);
 		}
 	}
 };
 setHills();
+
+// gaussian smoothing weights along a row, made once per SMOOTH rather than one Math.exp per tap per point
+let KERNEL = new Float32Array(1);
+let KERNEL_REACH = 0;
+let KERNEL_SUM = 1;
+const setKernel = () => {
+	const radius = K.SMOOTH;
+	KERNEL_REACH = radius > 0.05 ? Math.ceil(radius * 2) : 0;
+	KERNEL = new Float32Array(KERNEL_REACH * 2 + 1);
+	KERNEL_SUM = 0;
+	for (let d = -KERNEL_REACH; d <= KERNEL_REACH; d++) {
+		const w = Math.exp((-d * d) / (2 * Math.max(0.05, radius) * Math.max(0.05, radius)));
+		KERNEL[d + KERNEL_REACH] = w;
+		KERNEL_SUM += w;
+	}
+};
+setKernel();
+
+// ---- 8. pitch strands: the twelve parts of the line at "now" --------------------------------------------------
+// each note's own hill, wider than the mountains' so neighbours overlap and cross; and, for the wave, where across
+// the terrain a note's wave is strong (it fades to flat ground at both ends)
+const STRAND_HILLS = new Float32Array(12 * POINTS);
+const STRAND_WINDOW = new Float32Array(POINTS);
+for (let i = 0; i < POINTS; i++) STRAND_WINDOW[i] = 1 - Math.pow(Math.abs(ACROSS[i]), 4);
+const setStrandHills = () => {
+	const sigma = K.HILL + K.STRAND_SPREAD * 0.45;
+	for (let k = 0; k < 12; k++) {
+		const lane = laneOf(k);
+		for (let i = 0; i < POINTS; i++) {
+			const d = (ACROSS[i] - lane) / sigma;
+			STRAND_HILLS[k * POINTS + i] = Math.exp(-d * d);
+		}
+	}
+};
+setStrandHills();
+const strandKey = () => [K.LANE_SPAN, K.HILL, K.STRAND_SPREAD, K.LANE_ORDER].join("|");
+
+// what a cached row's shape depends on, and what the grid of rows depends on: a knob that is neither (GLOW, LINE, RIDGE,
+// the sky, the camera) no longer makes every row be shaped again
+const shapeKey = () => [K.LANE_SPAN, K.HILL, K.JAG, K.SMOOTH, K.RIDGE_LIMIT, K.LANE_ORDER, K.TIMBRE_HILL].join("|");
+const gridKey = () => [K.FUTURE_BEATS, K.PAST_BEATS, K.ROW_GAP_MIN, K.ROW_GAP_MAX].join("|");
+// the most rows drawn at once; past it the far, weightless ones thin out (only reached by the extreme knobs)
+const MAX_ROWS = 160;
 
 function create(): Preset {
 	const noise = createNoise2D();
@@ -202,6 +282,11 @@ function create(): Preset {
 	const gates = new Map<number, Float32Array>();
 	const live = new Float32Array(POINTS + 2);
 	const target = new Float32Array(POINTS + 2);
+	// 8. strands: each note's eased weight (pitches^1.5), the eased loudness it is scaled by, and a row's scratch
+	const strandW = new Float32Array(12);
+	const strandY = new Float32Array(POINTS);
+	let strandAmp = 0;
+	let strandSeen = strandKey();
 	// where each point of the line is on screen this frame
 	const xs = new Float32Array(POINTS);
 	// track on screen and the time it is shown at; they lag the player across a track change or seek
@@ -214,7 +299,8 @@ function create(): Preset {
 	let rowWeights: number[] = [];
 	let rowBars: boolean[] = [];
 	let onAccents = FEATURES.accents.on;
-	let tuned = tuneVersion();
+	let shaped = shapeKey();
+	let gridded = gridKey();
 	// echoes, and sounds played by the last frame (-1: unknown, nothing echoes across a change or seek)
 	const echoes: { data: Float32Array; age: number; amp: number }[] = [];
 	let played = -1;
@@ -253,28 +339,27 @@ function create(): Preset {
 			const amp = (Math.pow(loud, 0.8) * 1.5) / 3;
 			out[LEVEL] += loud / 3;
 			if (seg) sharp += (1 - Math.min(1, seg.loudness_max_time / 0.12)) / 3;
+			// TIMBRE_HILL: a ringing sound (timbre[1] high for this track) is drawn with narrower hills, a dull one with wider
+			const m = seg && K.TIMBRE_HILL > 0 ? K.TIMBRE_HILL * (rankOf(audio.timbreSorted, seg.timbre[1]) * 2 - 1) : 0;
+			const other = m > 0 ? HILLS_NARROW : HILLS_WIDE;
+			const mix = Math.abs(m);
 			for (let k = 0; k < 12; k++) {
 				// with no notes to go by, one broad hill
 				const w = seg ? Math.pow(seg.pitches[k], 1.5) : 0.35;
 				if (w < 0.02) continue;
-				for (let i = 0; i < POINTS; i++) out[i] += w * HILLS[k * POINTS + i] * amp;
+				if (mix < 0.001) for (let i = 0; i < POINTS; i++) out[i] += w * HILLS[k * POINTS + i] * amp;
+				else for (let i = 0; i < POINTS; i++) out[i] += w * (HILLS[k * POINTS + i] * (1 - mix) + other[k * POINTS + i] * mix) * amp;
 			}
 		}
 		// jagged where the sound was sharp, in proportion to the ridge
 		for (let i = 0; i < POINTS; i++) out[i] *= 1 + noise(ACROSS[i] * 9, t * 2.2) * sharp * K.JAG;
 		// gaussian smoothing along the line; the ends hold their value
-		const radius = K.SMOOTH;
-		if (radius > 0.05) {
-			const reach = Math.ceil(radius * 2);
+		if (KERNEL_REACH > 0) {
+			const reach = KERNEL_REACH;
 			for (let i = 0; i < POINTS; i++) {
 				let sum = 0;
-				let weight = 0;
-				for (let d = -reach; d <= reach; d++) {
-					const w = Math.exp((-d * d) / (2 * radius * radius));
-					sum += out[Math.max(0, Math.min(POINTS - 1, i + d))] * w;
-					weight += w;
-				}
-				BLUR[i] = sum / weight;
+				for (let d = -reach; d <= reach; d++) sum += out[Math.max(0, Math.min(POINTS - 1, i + d))] * KERNEL[d + reach];
+				BLUR[i] = sum / KERNEL_SUM;
 			}
 			for (let i = 0; i < POINTS; i++) out[i] = BLUR[i];
 		}
@@ -385,9 +470,15 @@ function create(): Preset {
 			}
 
 			// the grid kind was toggled (key 7) or a knob moved: rows made with the old values are stale
-			if (onAccents !== FEATURES.accents.on || rowTimes.length === 0 || tuned !== tuneVersion()) {
-				if (tuned !== tuneVersion()) setHills();
-				tuned = tuneVersion();
+			const nowShape = shapeKey();
+			const nowGrid = gridKey();
+			if (onAccents !== FEATURES.accents.on || rowTimes.length === 0 || shaped !== nowShape || gridded !== nowGrid) {
+				if (shaped !== nowShape) {
+					setHills();
+					setKernel();
+				}
+				shaped = nowShape;
+				gridded = nowGrid;
 				setGrid(shown);
 				rows.clear();
 				gates.clear();
@@ -410,7 +501,18 @@ function create(): Preset {
 			// move reads. Reads only the two measured levels (geometry never reads the moment detector); eased over ~1.5 s.
 			const loud = Math.max(0, Math.min(1, (lately - K.LATELY_QUIET) / (K.LATELY_LOUD - K.LATELY_QUIET)));
 			const crouch = Math.max(0, Math.min(1, (ahead - lately) / K.LEAD_FULL));
-			const cameraTarget = FEATURES.camera.on ? Math.max(K.CAMERA_LOW, K.CAMERA_LOW + loud * (K.CAMERA_HIGH - K.CAMERA_LOW) - crouch * 0.3) : 1;
+			// the track's own fade-in and fade-out (reported on nearly every track), as how much of the view is left:
+			// 1 in the body of the track, down to 0 at the very start and end. FADE_AMOUNT is how much of that shows.
+			let body = 1;
+			const fadeIn = shown?.trackInfo?.end_of_fade_in;
+			const fadeOut = shown?.trackInfo?.start_of_fade_out;
+			const length = shown?.trackInfo?.duration;
+			if (K.FADE_AMOUNT > 0 && typeof fadeIn === "number" && fadeIn > 0.5 && viewTime < fadeIn) body = Math.min(body, smoothstep(viewTime / fadeIn));
+			if (K.FADE_AMOUNT > 0 && typeof fadeOut === "number" && typeof length === "number" && fadeOut < length - 0.5 && viewTime > fadeOut) body = Math.min(body, 1 - smoothstep((viewTime - fadeOut) / (length - fadeOut)));
+			const fade = 1 - K.FADE_AMOUNT * (1 - body);
+			let cameraTarget = FEATURES.camera.on ? Math.max(K.CAMERA_LOW, K.CAMERA_LOW + loud * (K.CAMERA_HIGH - K.CAMERA_LOW) - crouch * 0.3) : 1;
+			// it sinks towards its lowest as the track fades
+			cameraTarget += (K.CAMERA_LOW - cameraTarget) * (1 - fade);
 			camera += (cameraTarget - camera) * Math.min(1, 0.7 * c.dt);
 
 			// ---- the view ----------------------------------------------------------------------------------
@@ -423,8 +525,13 @@ function create(): Preset {
 			const half = Math.min(width, (height * 16) / 9) * K.HALF_WIDTH;
 			// the camera drifts a little from side to side, which the depth answers with parallax
 			const sway = Math.sin(swayClock * 0.2) * width * (FEATURES.camera.on ? 0.085 : 0.05) * K.SWAY;
-			const midAt = (z: number) => cx + sway * (1 / z - 1 / K.Z_NOW);
-			const baseAt = (z: number) => hy + ground / z;
+			// BEND: the road the terrain follows is fixed in the song's own time, so a row keeps its place in it and the view
+			// follows; what is shown is how far a row's stretch of road lies from the one under "now"
+			const road = (t: number) => Math.sin(t * 0.13) + 0.5 * Math.sin(t * 0.31 + 1);
+			const bend = K.BEND > 0 ? road(viewTime) : 0;
+			const midAt = (z: number) => cx + sway * (1 / z - 1 / K.Z_NOW) + (K.BEND > 0 ? (K.BEND * 0.5 * (road(viewTime + (z - K.Z_NOW) / zPerSec) - bend) * half) / z : 0);
+			// CURVE: the ground falls away (or rises) with distance, over the part of the way from the front edge to the horizon
+			const baseAt = (z: number) => hy + ground / z + (K.CURVE !== 0 ? K.CURVE * height * 0.3 * Math.pow(1 - 1 / z, 2) : 0);
 			// far rows rise out of the fog from flat, not just fade; played rows sink and leave by the front edge
 			const farAt = (z: number) => smoothstep((zFar - z) / 0.9);
 			const playedAt = (z: number) => (z >= K.Z_NOW ? 1 : smoothstep((z - 1) / (K.Z_NOW - 1)));
@@ -449,18 +556,36 @@ function create(): Preset {
 			const lit = tint(rel(live[LEVEL]), 1);
 			const liveS = grey ? lit.s : Math.min(1, lit.s + 0.08);
 			const liveRgb = hslToRgb(familyHue(pal, lit, liveHue, turn), liveS, accentLightness(liveS, Math.min(0.8, lit.l + 0.16)));
+			// 8, 9. a colour for each note, left to right as the lanes stand: along the palette, through familyHue, so it
+			// stays inside the cover's colours like everything else
+			const noteRgb: Rgb[] =
+				FEATURES.strands.on || FEATURES.notes.on
+					? Array.from({ length: 12 }, (_, f) => {
+							const n = paletteAt(pal, f / 11);
+							const s = grey ? n.s : Math.min(1, n.s + 0.08);
+							return hslToRgb(familyHue(pal, n, liveHue, turn), s, accentLightness(s, Math.min(0.8, n.l + 0.16)));
+						})
+					: [];
 
 			ctx.fillStyle = "rgb(0, 0, 0)";
 			ctx.fillRect(0, 0, width, height);
 			ctx.lineJoin = "round";
 			ctx.lineCap = "round";
+			// BANK: the whole picture rolls a little with the sway, about the horizon's middle. Undone before the glow.
+			const banked = K.BANK > 0;
+			if (banked) {
+				ctx.save();
+				ctx.translate(cx, hy);
+				ctx.rotate(Math.sin(swayClock * 0.2) * K.BANK * 0.05);
+				ctx.translate(-cx, -hy);
+			}
 
 			// ---- 1. the glow on the horizon ---------------------------------------------------------------------
 			// brightness follows the next twelve beats, colour the coming section. Drawn first so far rows silhouette
 			// against it; kept dim because the glow pass blooms whatever is bright.
 			const yFar = baseAt(zFar);
 			if (FEATURES.horizon.on) {
-				const strength = smoothstep((ahead - 0.1) / 0.45) * presence;
+				const strength = smoothstep((ahead - 0.1) / 0.45) * presence * fade;
 				if (strength > 0.01) {
 					const far = tint(rel(ahead), 0);
 					const lean = FEATURES.grid.on ? keyHueAt(shown, viewTime + K.FUTURE_BEATS * beat * 0.8) * COLOURS.harmony : liveHue;
@@ -523,8 +648,9 @@ function create(): Preset {
 				// the mountains live between these two; outside them the row is flat ground
 				const x0 = mid - kx;
 				const x1 = mid + kx;
-				// beyond FINE_UNTIL every other point is drawn
-				const stride = z > K.FINE_UNTIL ? 2 : 1;
+				// beyond FINE_UNTIL every other point is drawn, and a row so far that its points are under a pixel and a half
+				// apart is drawn with fewer still
+				const stride = Math.max(z > K.FINE_UNTIL ? 2 : 1, Math.min(8, Math.ceil((1.5 * (POINTS - 1)) / (2 * kx))));
 				ctx.beginPath();
 				ctx.moveTo(x0, yBase);
 				for (let i = 0; i < POINTS; i += stride) ctx.lineTo(mid + ACROSS[i] * kx, yBase - data[i] * lift);
@@ -541,7 +667,7 @@ function create(): Preset {
 				// ---- 4. lit mountains ----
 				// body faintly lit from the ridge down: the light goes in the colour, never the alpha, or it stops hiding
 				// the rows behind. Kept dim so the glow pass leaves it alone.
-				const solid = Math.min(1, flat * 1.5);
+				const solid = Math.min(1, flat * 1.5) * K.FILL;
 				if (FEATURES.lit.on && glint > 0.03 && lift > 3) {
 					const body = ctx.createLinearGradient(0, yBase - lift * 1.1, 0, yBase);
 					body.addColorStop(0, rgbString({ r: rgb.r * glint, g: rgb.g * glint, b: rgb.b * glint }, solid));
@@ -571,12 +697,16 @@ function create(): Preset {
 				ctx.lineTo(x0, yBase);
 				ctx.moveTo(x1, yBase);
 				ctx.lineTo(right, yBase);
-				const fade = ctx.createLinearGradient(left, 0, right, 0);
-				fade.addColorStop(0, rgbString(rgb, 0));
-				fade.addColorStop((K.SIDE - 1) / (K.SIDE * 2), rgbString(rgb, alpha));
-				fade.addColorStop((K.SIDE + 1) / (K.SIDE * 2), rgbString(rgb, alpha));
-				fade.addColorStop(1, rgbString(rgb, 0));
-				ctx.strokeStyle = fade;
+				// a run-out under 40 px long gains nothing from its fade: one flat stroke, no gradient
+				if ((K.SIDE - 1) * kx < 40) ctx.strokeStyle = rgbString(rgb, alpha * 0.5);
+				else {
+					const fade = ctx.createLinearGradient(left, 0, right, 0);
+					fade.addColorStop(0, rgbString(rgb, 0));
+					fade.addColorStop((K.SIDE - 1) / (K.SIDE * 2), rgbString(rgb, alpha));
+					fade.addColorStop((K.SIDE + 1) / (K.SIDE * 2), rgbString(rgb, alpha));
+					fade.addColorStop(1, rgbString(rgb, 0));
+					ctx.strokeStyle = fade;
+				}
 				ctx.stroke();
 			};
 
@@ -585,6 +715,16 @@ function create(): Preset {
 			const chase = Math.min(1, 14 * c.dt);
 			// (paused, it is simply where it would have got to)
 			for (let i = 0; i < POINTS + 2; i++) live[i] += (target[i] - live[i]) * (isPlaying ? chase : 1);
+			// 8. the notes of the sound under "now", eased the way the line is
+			if (FEATURES.strands.on) {
+				if (strandSeen !== strandKey()) {
+					setStrandHills();
+					strandSeen = strandKey();
+				}
+				const now = shown && target[LEVEL] > 0 ? segmentAt(shown.segments, viewTime) : null;
+				strandAmp += (Math.pow(target[LEVEL], 0.8) * 1.5 - strandAmp) * (isPlaying ? chase : 1);
+				for (let k = 0; k < 12; k++) strandW[k] += ((shown && target[LEVEL] > 0 ? (now ? Math.pow(now.pitches[k], 1.5) : 0.35) : 0) - strandW[k]) * (isPlaying ? chase : 1);
+			}
 			// the body takes its place in the terrain; the line is drawn last, over the rows in front of it
 			const drawLive = () => row(live, K.Z_NOW, 1, 0, 1, liveHue, live[LEVEL], 0.14 + c.energy * 0.3, turn);
 
@@ -645,6 +785,11 @@ function create(): Preset {
 			const furthest = Math.min(rowTimes.length - 1, rowBefore(viewTime + K.FUTURE_BEATS * beat) + 1);
 			for (const n of rows.keys()) if (n < nearest || n > furthest) rows.delete(n);
 			let liveDrawn = false;
+			// a long stretch of rows (FUTURE_BEATS, the gap knobs at their extremes) thins its far, weightless rows
+			const thin = Math.max(1, Math.ceil((furthest - nearest + 1) / MAX_ROWS));
+			// screen y of the last row drawn: far rows bunch up under the horizon, and a flat one less than a pixel
+			// in front of the last is hidden by it anyway
+			let lastBase = -Infinity;
 			for (let n = furthest; n >= nearest; n--) {
 				const time = rowTimes[n];
 				const tau = time - viewTime;
@@ -655,6 +800,10 @@ function create(): Preset {
 				}
 				const z = K.Z_NOW + tau * zPerSec;
 				if (z < 1 || z > zFar) continue;
+				if (thin > 1 && z > K.FINE_UNTIL && n % thin !== 0 && rowWeights[n] < 0.5) continue;
+				const yBase = baseAt(z);
+				if (yBase - lastBase < 1 && (ridge / z) * K.RIDGE_LIMIT * playedAt(z) * sunkAt(tau) * farAt(z) * presence < 1) continue;
+				lastBase = yBase;
 				let data = rows.get(n);
 				if (!data) {
 					data = new Float32Array(POINTS + 2);
@@ -675,10 +824,13 @@ function create(): Preset {
 				const weight = rowWeights[n];
 				// how near "now" it is: what lights its body (4)
 				const near = Math.exp(-Math.pow(tau / (beat * 2), 2));
+				// PULSE: a row on a beat of the grid stands a little taller than one between; fixed to the row's own time,
+				// so it rolls towards the viewer with the terrain
+				const pulse = K.PULSE > 0 ? Math.max(0.4, 1 + K.PULSE * 0.3 * Math.cos((Math.PI * 2 * (time - (shown?.beats[0]?.start ?? 0))) / beat)) : 1;
 				row(
 					data,
 					z,
-					playedAt(z) * sunkAt(tau) * farAt(z),
+					playedAt(z) * sunkAt(tau) * farAt(z) * pulse,
 					seen * (0.07 + level * 0.42 + weight * 0.3 + crossing * 0.3 + (bar ? 0.2 : 0)),
 					Math.max(1, (scale * (bar ? 0.0028 : 0.0012 + weight * 0.0012) * K.Z_NOW) / z),
 					FEATURES.grid.on ? data[HUE] * COLOURS.harmony : liveHue,
@@ -698,6 +850,19 @@ function create(): Preset {
 			const liftNow = (ridge / K.Z_NOW) * presence;
 			const life = K.ECHO_BEATS * beat;
 			for (let i = 0; i < POINTS; i++) xs[i] = midAt(K.Z_NOW) + (ACROSS[i] * half) / K.Z_NOW;
+			const lineRight = midAt(K.Z_NOW) + (K.SIDE * half) / K.Z_NOW;
+			const lineLeft = midAt(K.Z_NOW) - (K.SIDE * half) / K.Z_NOW;
+			// 9. colour by note: one gradient across the line, a stop at each lane, opaque (the alpha is set on the context)
+			let noteGrad: CanvasGradient | null = null;
+			if (FEATURES.notes.on && K.NOTE_COLOUR > 0.01) {
+				noteGrad = ctx.createLinearGradient(lineLeft, 0, lineRight, 0);
+				for (let f = 0; f < 12; f++) {
+					const n = noteRgb[f];
+					const m = K.NOTE_COLOUR;
+					const lane = -K.LANE_SPAN + (2 * K.LANE_SPAN * f) / 11;
+					noteGrad.addColorStop((K.SIDE + lane) / (K.SIDE * 2), rgbString({ r: liveRgb.r + (n.r - liveRgb.r) * m, g: liveRgb.g + (n.g - liveRgb.g) * m, b: liveRgb.b + (n.b - liveRgb.b) * m }));
+				}
+			}
 			ctx.save();
 			ctx.globalCompositeOperation = "lighter";
 			for (let e = echoes.length - 1; e >= 0; e--) {
@@ -721,7 +886,10 @@ function create(): Preset {
 				}
 				for (let i = POINTS - 1; i >= 0; i--) ctx.lineTo(xs[i], yNow - live[i] * liftNow);
 				ctx.closePath();
-				ctx.fillStyle = rgbString(liveRgb, a * 0.22);
+				if (noteGrad) {
+					ctx.globalAlpha = a * 0.22;
+					ctx.fillStyle = noteGrad;
+				} else ctx.fillStyle = rgbString(liveRgb, a * 0.22);
 				ctx.fill();
 				// its edge: only where it stands off the line, leaving the line and coming back to it
 				ctx.beginPath();
@@ -737,23 +905,66 @@ function create(): Preset {
 						off = false;
 					}
 				}
-				ctx.strokeStyle = rgbString(liveRgb, a * 0.85);
+				if (noteGrad) {
+					ctx.globalAlpha = a * 0.85;
+					ctx.strokeStyle = noteGrad;
+				} else ctx.strokeStyle = rgbString(liveRgb, a * 0.85);
 				ctx.lineWidth = Math.max(1, scale * 0.0026 * (1 - t * 0.5));
 				ctx.stroke();
 			}
 			ctx.restore();
 
-			const lineRight = midAt(K.Z_NOW) + (K.SIDE * half) / K.Z_NOW;
-			const lineLeft = midAt(K.Z_NOW) - (K.SIDE * half) / K.Z_NOW;
+			// ---- 8. the strands: the twelve notes of the sound at "now", whose sum is the line -----------------------
+			// light only (they add to what is under them): a note's hill, or, with STRAND_WAVE, a wave at the note's pitch
+			// ratio sliding along on the track's clock, so a paused picture does not move
+			if (FEATURES.strands.on && presence > 0.02 && strandAmp > 0.004) {
+				let top = 0;
+				for (let k = 0; k < 12; k++) top = Math.max(top, strandW[k]);
+				ctx.save();
+				ctx.globalCompositeOperation = "lighter";
+				ctx.lineWidth = Math.max(1, scale * 0.0024);
+				const wave = K.STRAND_WAVE;
+				for (let k = 0; k < 12; k++) {
+					const w = strandW[k];
+					if (w < 0.03) continue;
+					const a = Math.min(1, 0.6 * K.STRAND_LIGHT * presence * (0.25 + (0.75 * w) / top));
+					if (a < 0.01) continue;
+					const ratio = Math.pow(2, k / 12);
+					const cycles = 2 * ratio;
+					const phase = viewTime * 0.35 * ratio;
+					const amp = strandAmp * w;
+					for (let i = 0; i < POINTS; i++) {
+						let y = STRAND_HILLS[k * POINTS + i];
+						if (wave > 0.001) y = y * (1 - wave) + wave * (0.5 + 0.5 * Math.sin(Math.PI * 2 * (cycles * (ACROSS[i] + 1) * 0.5 + phase))) * STRAND_WINDOW[i];
+						strandY[i] = K.RIDGE_LIMIT * Math.tanh((y * amp) / K.RIDGE_LIMIT);
+					}
+					ctx.beginPath();
+					for (let i = 0; i < POINTS; i += 2) {
+						if (i === 0) ctx.moveTo(xs[i], yNow - strandY[i] * liftNow);
+						else ctx.lineTo(xs[i], yNow - strandY[i] * liftNow);
+					}
+					ctx.lineTo(xs[POINTS - 1], yNow - strandY[POINTS - 1] * liftNow);
+					ctx.strokeStyle = rgbString(noteRgb[Math.round(lanePos(k))], a);
+					ctx.stroke();
+				}
+				ctx.restore();
+			}
 
 			// ---- the waveform itself, on top -------------------------------------------------------------------------
 			ctx.beginPath();
 			ctx.moveTo(lineLeft, yNow);
 			for (let i = 0; i < POINTS; i++) ctx.lineTo(xs[i], yNow - live[i] * liftNow);
 			ctx.lineTo(lineRight, yNow);
-			ctx.strokeStyle = rgbString(liveRgb, 0.95);
+			if (noteGrad) {
+				ctx.save();
+				ctx.globalAlpha = 0.95;
+				ctx.strokeStyle = noteGrad;
+			} else ctx.strokeStyle = rgbString(liveRgb, 0.95);
 			ctx.lineWidth = Math.max(1.5, scale * 0.0042) * K.LINE;
 			ctx.stroke();
+			if (noteGrad) ctx.restore();
+
+			if (banked) ctx.restore();
 
 			// the halo swells with the sound itself and with a moment
 			glow(ctx, ctx.canvas, width, height, scale, (0.3 + c.energy * 0.6 + c.impact * 0.5) * K.GLOW);

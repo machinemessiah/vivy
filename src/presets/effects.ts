@@ -77,9 +77,12 @@ export function createGlow() {
 		cx.filter = `contrast(1.6) brightness(1.2) blur(${Math.max(1, (scale * 0.006) / GLOW_CORE_DIV)}px)`;
 		cx.drawImage(source, 0, 0, nw, nh);
 		cx.filter = "none";
-		const [hw, hh] = fitReduced(halo, width, height, GLOW_HALO_DIV);
+		// not below about 20000 pixels: Chromium keeps only canvases of roughly 128x129 and up on the GPU, and the halo
+		// at 1/12 of 1080p (160x90) is under that, so its blur may run on the CPU
+		const haloDiv = Math.max(1, Math.min(GLOW_HALO_DIV, Math.sqrt((width * height) / 20000)));
+		const [hw, hh] = fitReduced(halo, width, height, haloDiv);
 		hx.clearRect(0, 0, hw, hh);
-		hx.filter = `blur(${Math.max(1, (scale * 0.03) / GLOW_HALO_DIV)}px) brightness(2.2)`;
+		hx.filter = `blur(${Math.max(1, (scale * 0.03) / haloDiv)}px) brightness(2.2)`;
 		hx.drawImage(core, 0, 0, hw, hh);
 		hx.filter = "none";
 		ctx.save();
