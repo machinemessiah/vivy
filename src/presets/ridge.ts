@@ -67,10 +67,12 @@ const SIDE = 1.62;
 const FINE_UNTIL = 3.6;
 
 // ---- a row's shape ----------------------------------------------------------------------------------------
-const POINTS = 192; ///96;
-// a row carries its loudness and the colour of its section after its points
-const LEVEL = POINTS;
-const HUE = POINTS + 1;
+// how many samples span one row. The slider moves this; the tables below are rebuilt to match, so it is not a const.
+let POINTS = 192; ///96;
+// loudness, then the section's colour, in the two slots after the samples. They sit at this index, so they move
+// when the count does: a row shaped at the old count keeps them at the old index and cannot be reused.
+let LEVEL = POINTS;
+let HUE = POINTS + 1;
 // how far across the outermost pitch lanes sit, and how wide one note's hill is (in half-widths)
 const LANE_SPAN = 0.6152;
 const HILL = 0.07583;
@@ -92,6 +94,7 @@ const SKY_WIDTH = 1.146;
 const SKY_BRIGHT = 0.425;
 
 const K = tune("ridge", {
+	POINTS: [POINTS, 96, 1200, "points per row"],
 	FUTURE_BEATS: [FUTURE_BEATS, 4, 40, "beats of the future on screen", "time"],
 	PAST_BEATS: [PAST_BEATS, 1, 8, "beats of the past"],
 	ROW_GAP_MIN: [ROW_GAP_MIN, 0.05, 1, "rows no closer than, beats"],
@@ -136,9 +139,10 @@ const K = tune("ridge", {
 	TIMBRE_HILL: [0, 0, 1, "how far timbre reshapes the hills"],
 	LANE_ORDER: [0, 0, 1, "fifths to semitone order"],
 	PULSE: [0, 0, 1, "beat swell in the terrain"]
-	},
+},
 	// what each one does, shown beside the panel on hover
 	{
+		POINTS: "How many points each row is drawn with. Higher makes the rows smoother; lower makes them coarser.",
 		FUTURE_BEATS: "How much of the song ahead is on screen. Higher shows further into the future, rows get packed tighter.",
 		PAST_BEATS: "How much of the song just played stays visible in front of the bright line before it sinks away. Higher keeps it longer.",
 		ROW_GAP_MIN: "Smallest spacing between rows. Higher drops rows on fast sounds, so the terrain gets sparser; lower keeps every sound as its own row.",
@@ -202,14 +206,14 @@ const smoothstep = (t: number) => {
 const beatOf = (audio: TrackAudioData | null) => (audio?.tempo && audio.tempo > 40 ? 60 / audio.tempo : 0.5);
 const BLACK = { r: 0, g: 0, b: 0 };
 
-// where each point of a row sits across the terrain, -1..1, and each pitch class's hill over those points
-const ACROSS = new Float32Array(POINTS);
-const BLUR = new Float32Array(POINTS);
-const HILLS = new Float32Array(12 * POINTS);
+// where each point of a row sits across the terrain, -1..1, and each pitch class's hill over those points.
+// Empty until setResolution: the length is the point count, so a new count is a new table, not a refill of this one.
+let ACROSS = new Float32Array(0);
+let BLUR = new Float32Array(0);
+let HILLS = new Float32Array(0);
 // the same hills narrower and wider, for TIMBRE_HILL: a ringing sound is drawn with the narrow ones, a dull one with the wide
-const HILLS_NARROW = new Float32Array(12 * POINTS);
-const HILLS_WIDE = new Float32Array(12 * POINTS);
-for (let i = 0; i < POINTS; i++) ACROSS[i] = -1 + (2 * i) / (POINTS - 1);
+let HILLS_NARROW = new Float32Array(0);
+let HILLS_WIDE = new Float32Array(0);
 // which of the 12 places across the terrain a note stands in (0..11, left to right): in fifths, C G D A E B F# C# G# D# A# F,
 // so a triad is three neighbouring lanes; LANE_ORDER takes it to semitones. Between the two it is a place in between.
 const lanePos = (k: number) => ((k * 7) % 12) * (1 - K.LANE_ORDER) + k * K.LANE_ORDER;
@@ -227,7 +231,6 @@ const setHills = () => {
 		}
 	}
 };
-setHills();
 
 // gaussian smoothing weights along a row, made once per SMOOTH rather than one Math.exp per tap per point
 let KERNEL = new Float32Array(1);
@@ -249,9 +252,8 @@ setKernel();
 // ---- 8. pitch strands: the twelve parts of the line at "now" --------------------------------------------------
 // each note's own hill, wider than the mountains' so neighbours overlap and cross; and, for the wave, where across
 // the terrain a note's wave is strong (it fades to flat ground at both ends)
-const STRAND_HILLS = new Float32Array(12 * POINTS);
-const STRAND_WINDOW = new Float32Array(POINTS);
-for (let i = 0; i < POINTS; i++) STRAND_WINDOW[i] = 1 - Math.pow(Math.abs(ACROSS[i]), 4);
+let STRAND_HILLS = new Float32Array(0);
+let STRAND_WINDOW = new Float32Array(0);
 const setStrandHills = () => {
 	const sigma = K.HILL + K.STRAND_SPREAD * 0.45;
 	for (let k = 0; k < 12; k++) {
@@ -262,7 +264,34 @@ const setStrandHills = () => {
 		}
 	}
 };
-setStrandHills();
+
+// A new point count rebuilds every table the row is drawn from. The samples always run from -1 to 1, so fewer
+// points are a coarser row across the whole width, not a crop of the left side. The slider steps by 12; a stored
+// value is snapped to that so the tables and the knob stay on the same count. LEVEL and HUE are re-aimed at the
+// two slots after the new samples.
+const setResolution = (n: number) => {
+	const next = Math.max(96, Math.min(1200, Math.round(n / 12) * 12));
+	if (next === POINTS && ACROSS.length === next) return false;
+	POINTS = next;
+	LEVEL = POINTS;
+	HUE = POINTS + 1;
+	ACROSS = new Float32Array(POINTS);
+	BLUR = new Float32Array(POINTS);
+	HILLS = new Float32Array(12 * POINTS);
+	HILLS_NARROW = new Float32Array(12 * POINTS);
+	HILLS_WIDE = new Float32Array(12 * POINTS);
+	STRAND_HILLS = new Float32Array(12 * POINTS);
+	STRAND_WINDOW = new Float32Array(POINTS);
+	for (let i = 0; i < POINTS; i++) {
+		ACROSS[i] = -1 + (2 * i) / (POINTS - 1);
+		STRAND_WINDOW[i] = 1 - Math.pow(Math.abs(ACROSS[i]), 4);
+	}
+	setHills();
+	setStrandHills();
+	return true;
+};
+setResolution(K.POINTS);
+
 const strandKey = () => [K.LANE_SPAN, K.HILL, K.STRAND_SPREAD, K.LANE_ORDER].join("|");
 
 // what a cached row's shape depends on, and what the grid of rows depends on: a knob that is neither (GLOW, LINE, RIDGE,
@@ -281,15 +310,16 @@ function create(): Preset {
 	// rows keyed by index on the beat grid, cached while on screen; gates sit at section boundaries
 	const rows = new Map<number, Float32Array>();
 	const gates = new Map<number, Float32Array>();
-	const live = new Float32Array(POINTS + 2);
-	const target = new Float32Array(POINTS + 2);
+	// resized with the point count: the two extra slots are loudness and hue
+	let live = new Float32Array(POINTS + 2);
+	let target = new Float32Array(POINTS + 2);
 	// 8. strands: each note's eased weight (pitches^1.5), the eased loudness it is scaled by, and a row's scratch
 	const strandW = new Float32Array(12);
-	const strandY = new Float32Array(POINTS);
+	let strandY = new Float32Array(POINTS);
 	let strandAmp = 0;
 	let strandSeen = strandKey();
 	// where each point of the line is on screen this frame
-	const xs = new Float32Array(POINTS);
+	let xs = new Float32Array(POINTS);
 	// track on screen and the time it is shown at; they lag the player across a track change or seek
 	let shown: TrackAudioData | null = null;
 	let viewTime = 0;
@@ -470,6 +500,20 @@ function create(): Preset {
 				presence += ((shown ? 1 : 0) - presence) * Math.min(1, 1.2 * c.dt);
 			}
 
+			// setResolution rebuilds the shared tables when the count changes, and reports that it did.
+			// These buffers, and anything cached, are still the old length: loudness and hue sit at the old indexes,
+			// so a kept row would read them from the middle of the line. Drop them; the next time a row is drawn
+			// it is shaped at the new count.
+			if (setResolution(K.POINTS)) {
+				live = new Float32Array(POINTS + 2);
+				target = new Float32Array(POINTS + 2);
+				strandY = new Float32Array(POINTS);
+				xs = new Float32Array(POINTS);
+				rows.clear();
+				gates.clear();
+				echoes.length = 0;
+			}
+
 			// the grid kind was toggled (key 7) or a knob moved: rows made with the old values are stale
 			const nowShape = shapeKey();
 			const nowGrid = gridKey();
@@ -583,10 +627,10 @@ function create(): Preset {
 			const noteRgb: Rgb[] =
 				FEATURES.strands.on || FEATURES.notes.on
 					? Array.from({ length: 12 }, (_, f) => {
-							const n = paletteAt(pal, f / 11);
-							const s = grey ? n.s : Math.min(1, n.s + 0.08);
-							return hslToRgb(familyHue(pal, n, liveHue, turn), s, accentLightness(s, Math.min(0.8, n.l + 0.16)));
-						})
+						const n = paletteAt(pal, f / 11);
+						const s = grey ? n.s : Math.min(1, n.s + 0.08);
+						return hslToRgb(familyHue(pal, n, liveHue, turn), s, accentLightness(s, Math.min(0.8, n.l + 0.16)));
+					})
 					: [];
 
 			ctx.fillStyle = "rgb(0, 0, 0)";

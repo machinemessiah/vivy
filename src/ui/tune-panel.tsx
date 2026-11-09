@@ -116,13 +116,13 @@ export function TunePanel({ presetId, onClose }: { presetId: string; onClose: ()
 					>
 						<div className="vivy-tune-label" onDoubleClick={() => (setKnob(presetId, k.key, k.def), refresh())}>
 							<span>{tr(`${presetId}.${k.key}`, k.label)}</span>
-							<span>{+value.toPrecision(3)}</span>
+							<span>{k.key === "POINTS" ? +value : +value.toPrecision(3)}</span>
 						</div>
 						<input
 							type="range"
 							min={k.min}
 							max={k.max}
-							step={(k.max - k.min) / 400}
+							step={k.key === "POINTS" ? 12 : (k.max - k.min) / 400}
 							value={value}
 							onChange={e => (setKnob(presetId, k.key, Number(e.target.value)), refresh())}
 						/>
