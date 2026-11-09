@@ -8,3 +8,4 @@ probe-log.json
 marks.jsonl
 # written by stamp.js on every build
 src/build-stamp.ts
+.cursorignore

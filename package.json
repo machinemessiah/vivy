@@ -8,6 +8,7 @@
     "watch": "spicetify-creator --watch",
     "build-local": "spicetify-creator --out=dist --minify",
     "build-dev": "spicetify-creator --out=dist",
+    "build-dev-quiet": "node stamp.js --release && spicetify-creator --out=dist",
     "release": "node stamp.js --release && spicetify-creator --out=dist --minify && node release-notice.js && node stamp.js",
     "typecheck": "node stamp.js && tsc --noEmit",
     "check": "node check-presets.js",
