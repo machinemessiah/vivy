@@ -68,7 +68,7 @@ const SIDE = 1.62;
 const FINE_UNTIL = 3.6;
 
 // ---- a row's shape ----------------------------------------------------------------------------------------
-const POINTS = 96;
+const POINTS = 192; ///96;
 // a row carries its loudness and the colour of its section after its points
 const LEVEL = POINTS;
 const HUE = POINTS + 1;
