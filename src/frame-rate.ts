@@ -1,6 +1,6 @@
 // The frame rate cap, shared by both presets. 0 draws every frame the monitor gives. Presets move by
 // the clock, not by the frame, so a cap changes smoothness, never speed.
-export const FRAME_RATES = [30, 60, 120, 0] as const;
+export const FRAME_RATES = [30, 60, 120, 144, 0] as const;
 export type FrameRate = (typeof FRAME_RATES)[number];
 
 const STORE = "vivy:fps";
@@ -25,7 +25,7 @@ export function setFrameRate(fps: FrameRate) {
 	}
 }
 
-const MAX_PIXELS = 1920 * 1080;
+const MAX_PIXELS = 2560 * 1440; /// 1920 * 1080;
 
 // Device pixels to draw a canvas at. Fills cost by area: above 1080p it renders smaller and CSS stretches it.
 export function renderSize(canvas: HTMLCanvasElement, ratio: number) {

@@ -19,9 +19,8 @@ const FEATURES = {
 	camera: { name: "camera", on: true },
 	dust: { name: "dust", on: true },
 	accents: { name: "rows on accents", on: true },
-	// off by default: both change the look of the line at "now"
-	strands: { name: "pitch strands", on: false },
-	notes: { name: "colour by note", on: false }
+	strands: { name: "pitch strands", on: true },
+	notes: { name: "colour by note", on: true }
 };
 const FEATURE_KEYS = Object.values(FEATURES);
 tuneFeatures("ridge", FEATURE_KEYS);
@@ -102,6 +101,7 @@ const K = tune("ridge", {
 	GROUND: [GROUND, 0.2, 1.2, "ground drop"],
 	RIDGE: [RIDGE, 0.05, 1, "ridge height"],
 	HALF_WIDTH: [HALF_WIDTH, 0.3, 1.5, "terrain width"],
+	FUNNEL: [0, 0, 1, "width taper"],
 	SIDE: [SIDE, 1.05, 3, "flat run-out to the sides"],
 	FINE_UNTIL: [FINE_UNTIL, 1, 20, "full detail nearer than"],
 	CAMERA_LOW: [CAMERA_LOW, 0.2, 1.5, "camera height, quiet", "camera"],
@@ -148,6 +148,7 @@ const K = tune("ridge", {
 		GROUND: "How far the front of the ground drops below the horizon. Higher spreads the rows out vertically; lower flattens them together.",
 		RIDGE: "How tall the mountains are. Higher makes loud sounds tower; lower makes the whole landscape flatter.",
 		HALF_WIDTH: "How wide the terrain is. Higher spreads the mountains out wider; lower packs them toward the middle.",
+		FUNNEL: "How far the ridges open toward the horizon. Zero keeps the usual perspective, narrow in the distance. Higher opens the far ridges out to the edges of the screen and narrows the bright line; what has already played flares back out toward the bottom.",
 		SIDE: "How far the flat ground continues to the left and right of the mountains before fading out. Higher gives longer flat lines at the edges.",
 		FINE_UNTIL: "Distance up to which rows are drawn in full detail. Higher keeps more rows smooth; lower makes far rows slightly coarser.",
 		CAMERA_LOW: "How high the view floats over quiet music. Higher looks down on the terrain more; lower sits near the ground and flattens the rows.",
@@ -184,7 +185,7 @@ const K = tune("ridge", {
 		PULSE: "Makes the rows on the beat a little taller than the ones between, so the beat rolls through the terrain toward you. Zero keeps them even."
 	},
 	// shown without "More"; the rest is for whoever wants to dig
-	["FUTURE_BEATS", "HORIZON", "RIDGE", "HALF_WIDTH", "SMOOTH", "ECHO_BEATS", "SKY_BRIGHT", "GLOW"]
+	["FUTURE_BEATS", "HORIZON", "RIDGE", "HALF_WIDTH", "FUNNEL", "SMOOTH", "ECHO_BEATS", "SKY_BRIGHT", "GLOW"]
 );
 
 // what the gradient can follow here (see colours.ts)
@@ -529,7 +530,28 @@ function create(): Preset {
 			// follows; what is shown is how far a row's stretch of road lies from the one under "now"
 			const road = (t: number) => Math.sin(t * 0.13) + 0.5 * Math.sin(t * 0.31 + 1);
 			const bend = K.BEND > 0 ? road(viewTime) : 0;
-			const midAt = (z: number) => cx + sway * (1 / z - 1 / K.Z_NOW) + (K.BEND > 0 ? (K.BEND * 0.5 * (road(viewTime + (z - K.Z_NOW) / zPerSec) - bend) * half) / z : 0);
+			// @what - half the mountain width, in pixels, at depth z
+			// @why - FUNNEL opens the horizon out to the canvas and narrows the bright line; zero stays on half/z
+			// @how - blended in 1/z, the same space as the ground, so zero is exactly the old width and the two sides of the line meet
+			const spanAt = (z: number) => {
+				const classic = half / z;
+				const funnel = K.FUNNEL;
+				if (funnel <= 0) return classic;
+				const neck = (half / K.Z_NOW) * (1 - 0.5 * funnel);
+				// wider than the canvas only in the extreme: the horizon then stays as wide as the neck, so the taper does not flip
+				const horizon = Math.max(neck, width * 0.5);
+				const far = half / zFar + (horizon - half / zFar) * funnel;
+				if (z >= K.Z_NOW) {
+					const denom = 1 / K.Z_NOW - 1 / zFar;
+					const t = denom > 1e-6 ? Math.max(0, Math.min(1, (1 / K.Z_NOW - 1 / z) / denom)) : 0;
+					return neck + (far - neck) * t;
+				}
+				// played rows flare back out to today's front edge
+				const denom = 1 - 1 / K.Z_NOW;
+				const t = denom > 1e-6 ? Math.max(0, Math.min(1, (1 / z - 1 / K.Z_NOW) / denom)) : 1;
+				return neck + (half - neck) * t;
+			};
+			const midAt = (z: number) => cx + sway * (1 / z - 1 / K.Z_NOW) + (K.BEND > 0 ? K.BEND * 0.5 * (road(viewTime + (z - K.Z_NOW) / zPerSec) - bend) * spanAt(z) : 0);
 			// CURVE: the ground falls away (or rises) with distance, over the part of the way from the front edge to the horizon
 			const baseAt = (z: number) => hy + ground / z + (K.CURVE !== 0 ? K.CURVE * height * 0.3 * Math.pow(1 - 1 / z, 2) : 0);
 			// far rows rise out of the fog from flat, not just fade; played rows sink and leave by the front edge
@@ -627,8 +649,8 @@ function create(): Preset {
 					if (a < 0.015) continue;
 					const z2 = z + 0.08;
 					ctx.beginPath();
-					ctx.moveTo(midAt(z) + (dust[i * 4] * half) / z, baseAt(z) - (dust[i * 4 + 1] * ridge) / z);
-					ctx.lineTo(midAt(z2) + (dust[i * 4] * half) / z2, baseAt(z2) - (dust[i * 4 + 1] * ridge) / z2);
+					ctx.moveTo(midAt(z) + dust[i * 4] * spanAt(z), baseAt(z) - (dust[i * 4 + 1] * ridge) / z);
+					ctx.lineTo(midAt(z2) + dust[i * 4] * spanAt(z2), baseAt(z2) - (dust[i * 4 + 1] * ridge) / z2);
 					ctx.strokeStyle = rgbString(liveRgb, Math.min(0.42, a * 1.2));
 					ctx.stroke();
 				}
@@ -644,7 +666,7 @@ function create(): Preset {
 				const yBase = baseAt(z);
 				const lift = (ridge / z) * flat * presence;
 				const mid = midAt(z);
-				const kx = half / z;
+				const kx = spanAt(z);
 				// the mountains live between these two; outside them the row is flat ground
 				const x0 = mid - kx;
 				const x1 = mid + kx;
@@ -849,9 +871,10 @@ function create(): Preset {
 			const yNow = baseAt(K.Z_NOW);
 			const liftNow = (ridge / K.Z_NOW) * presence;
 			const life = K.ECHO_BEATS * beat;
-			for (let i = 0; i < POINTS; i++) xs[i] = midAt(K.Z_NOW) + (ACROSS[i] * half) / K.Z_NOW;
-			const lineRight = midAt(K.Z_NOW) + (K.SIDE * half) / K.Z_NOW;
-			const lineLeft = midAt(K.Z_NOW) - (K.SIDE * half) / K.Z_NOW;
+			const neck = spanAt(K.Z_NOW);
+			for (let i = 0; i < POINTS; i++) xs[i] = midAt(K.Z_NOW) + ACROSS[i] * neck;
+			const lineRight = midAt(K.Z_NOW) + K.SIDE * neck;
+			const lineLeft = midAt(K.Z_NOW) - K.SIDE * neck;
 			// 9. colour by note: one gradient across the line, a stop at each lane, opaque (the alpha is set on the context)
 			let noteGrad: CanvasGradient | null = null;
 			if (FEATURES.notes.on && K.NOTE_COLOUR > 0.01) {
