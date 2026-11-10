@@ -22,6 +22,9 @@ export function storedPicture(): Picture {
 
 let picture = storedPicture();
 let target: { canvas: HTMLCanvasElement; container: HTMLElement; backdrop: HTMLElement } | null = null;
+// Ridge has punched holes in the frame. Screen blend would drop every remaining black pixel, so it stays off
+// until the holes close and the Picture slider is in charge again.
+let holes = false;
 
 export const currentPicture = () => picture;
 
@@ -65,11 +68,28 @@ export function refreshPicture() {
 	}
 	if (saturation !== 1) parts.push(`saturate(${saturation})`);
 	target.canvas.style.filter = parts.join(" ");
+	// holes win over the Picture slider: the page shows through the empty pixels only, and black that was
+	// painted stays black. Screen would throw that black away everywhere.
+	if (holes) {
+		target.canvas.style.mixBlendMode = "";
+		target.container.style.background = "transparent";
+		seeThroughPage(paintBackdrop(target.backdrop, 1));
+		return;
+	}
 	// screen adds the preset's light to what is behind and drops its black; only the black under it
 	// thins out, so the lines stay at full strength over the theme
 	target.canvas.style.mixBlendMode = transparency ? "screen" : "";
 	target.container.style.background = transparency ? "transparent" : "";
 	seeThroughPage(paintBackdrop(target.backdrop, transparency));
+}
+
+// @what - open or close the page behind the canvas
+// @why - Ridge's opacity knobs are real alpha. They only show once the page behind the canvas is visible,
+// and they must not turn the Picture slider on to get there.
+export function setCanvasHoles(on: boolean) {
+	if (holes === on) return;
+	holes = on;
+	refreshPicture();
 }
 
 // Stock Spotify has nothing behind the page, so there the backdrop is the cover, blurred; a theme

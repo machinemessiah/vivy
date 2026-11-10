@@ -22,8 +22,9 @@ export function useFrameLoop(
 	useEffect(() => {
 		const canvas = canvasRef.current;
 		if (!canvas) return;
-		// opaque: never composited against anything behind it
-		const ctx = canvas.getContext("2d", { alpha: false });
+		// alpha on, so a preset can leave a pixel empty and show the page behind it.
+		// a preset that paints every pixel black still looks opaque
+		const ctx = canvas.getContext("2d", { alpha: true });
 		if (!ctx) return;
 
 		// Spotify's window, or the mini window

@@ -1,6 +1,6 @@
 // Ridgeline: the whole song as a terrain flying at the viewer. A row is one sound (height: loudness,
 // shape: harmony in fifths), depth is time, the bright line is "now", echoes are afterimages of sounds.
-// Seven extras toggle with keys 1-7 (FEATURES); each is one block in draw().
+// Keys 1-9 toggle the first extras (FEATURES). The filled line is panel-only: there is no key 10.
 // Ridgeline plot: rows drawn far to near, each filled so it hides what is behind it.
 import { createNoise2D } from "simplex-noise";
 import { createGlow, createKeyHue, keyHueAt } from "./effects";
@@ -9,6 +9,7 @@ import { accentLightness, colourSettings, familyHue, GREY, hslToRgb, palette, pa
 import { rankOf, sampleCurve, segmentAt, TrackAudioData } from "../audio-data";
 import { Preset, PresetDefinition, rgbString } from "./types";
 import { tune, tuneFeatures, tuneVersion } from "./tune";
+import { setCanvasHoles } from "../ui/picture";
 
 // ---- the extras, in the order of their keys ---------------------------------------------------------
 const FEATURES = {
@@ -20,7 +21,9 @@ const FEATURES = {
 	dust: { name: "dust", on: true },
 	accents: { name: "rows on accents", on: true },
 	strands: { name: "pitch strands", on: true },
-	notes: { name: "colour by note", on: true }
+	notes: { name: "colour by note", on: true },
+	// off: the current moment stays a stroke, and LINE sets its thickness
+	filled: { name: "filled now line", on: false }
 };
 const FEATURE_KEYS = Object.values(FEATURES);
 tuneFeatures("ridge", FEATURE_KEYS);
@@ -138,7 +141,10 @@ const K = tune("ridge", {
 	FADE_AMOUNT: [0, 0, 1, "how far intro and outro fade the view"],
 	TIMBRE_HILL: [0, 0, 1, "how far timbre reshapes the hills"],
 	LANE_ORDER: [0, 0, 1, "fifths to semitone order"],
-	PULSE: [0, 0, 1, "beat swell in the terrain"]
+	PULSE: [0, 0, 1, "beat swell in the terrain"],
+	SKY: [1, 0, 1, "opacity of the sky", "opacity"],
+	BELOW: [1, 0, 1, "opacity below the now line"],
+	UNDER: [1, 0, 1, "opacity under the ridges"]
 },
 	// what each one does, shown beside the panel on hover
 	{
@@ -186,7 +192,10 @@ const K = tune("ridge", {
 		FADE_AMOUNT: "How far the track's own fade-in and fade-out show: the horizon glow dims and the camera sinks into an outro and rises from an intro. Zero ignores them.",
 		TIMBRE_HILL: "Lets the sound's brightness reshape its hills. Dull sounds make broad rolling hills; bright, ringing ones make thin spikes. Zero keeps one width.",
 		LANE_ORDER: "Where the twelve notes stand across the terrain. Zero is the circle of fifths, so a chord is one mountain; one is by semitone, so a chord spreads out.",
-		PULSE: "Makes the rows on the beat a little taller than the ones between, so the beat rolls through the terrain toward you. Zero keeps them even."
+		PULSE: "Makes the rows on the beat a little taller than the ones between, so the beat rolls through the terrain toward you. Zero keeps them even.",
+		SKY: "How solid the black above the ridges is. At 1 the sky is black; lower opens it onto the page behind. The horizon glow and the dust stay drawn on top.",
+		BELOW: "How solid the black below the now line is. At 1 it is black; lower opens that ground onto the page. Ridges that have already sunk still draw over it.",
+		UNDER: "How solid the black under each ridge is. The crest lines stay. At 1 a row hides what is behind it; lower lets the page through, and the ridges behind show through with it. The filled now line thins with this too. FILL still sets how solid the body is before this."
 	},
 	// shown without "More"; the rest is for whoever wants to dig
 	["FUTURE_BEATS", "HORIZON", "RIDGE", "HALF_WIDTH", "FUNNEL", "SMOOTH", "ECHO_BEATS", "SKY_BRIGHT", "GLOW"]
@@ -633,17 +642,34 @@ function create(): Preset {
 					})
 					: [];
 
-			ctx.fillStyle = "rgb(0, 0, 0)";
+			// a hole is open only while one of the opacity knobs has moved. At 1 the page stays covered.
+			setCanvasHoles(K.SKY < 1 || K.BELOW < 1 || K.UNDER < 1);
+			// @why - a semi-transparent black painted over the previous frame would darken it again each frame.
+			// Clearing first lets the sky alpha sit on empty pixels, so 1 is the old opaque black.
+			ctx.clearRect(0, 0, width, height);
+			ctx.fillStyle = rgbString(BLACK, K.SKY);
 			ctx.fillRect(0, 0, width, height);
 			ctx.lineJoin = "round";
 			ctx.lineCap = "round";
-			// BANK: the whole picture rolls a little with the sway, about the horizon's middle. Undone before the glow.
+			// BANK: the whole picture rolls a little with the sway, about the horizon's middle. Undone before the glow,
+			// and put back only for the filled now line, which is painted after the glow.
+			const bankAngle = Math.sin(swayClock * 0.2) * K.BANK * 0.05;
 			const banked = K.BANK > 0;
-			if (banked) {
+			const applyBank = () => {
 				ctx.save();
 				ctx.translate(cx, hy);
-				ctx.rotate(Math.sin(swayClock * 0.2) * K.BANK * 0.05);
+				ctx.rotate(bankAngle);
 				ctx.translate(-cx, -hy);
+			};
+			if (banked) applyBank();
+			// the sky clear covers the whole frame. Where the ground below the now line should be a different
+			// black, that band is punched out and painted at its own opacity. Oversized so a rolled view still
+			// covers the corners. Skipped when it matches the sky, which is every frame until a knob moves.
+			if (K.BELOW !== K.SKY) {
+				const yGround = baseAt(K.Z_NOW);
+				ctx.clearRect(-width, yGround, width * 3, height * 3);
+				ctx.fillStyle = rgbString(BLACK, K.BELOW);
+				ctx.fillRect(-width, yGround, width * 3, height * 3);
 			}
 
 			// ---- 1. the glow on the horizon ---------------------------------------------------------------------
@@ -733,7 +759,18 @@ function create(): Preset {
 				// ---- 4. lit mountains ----
 				// body faintly lit from the ridge down: the light goes in the colour, never the alpha, or it stops hiding
 				// the rows behind. Kept dim so the glow pass leaves it alone.
-				const solid = Math.min(1, flat * 1.5) * K.FILL;
+				// UNDER is how see-through that black is. The crest stroke below is not multiplied.
+				const solid = Math.min(1, flat * 1.5) * K.FILL * K.UNDER;
+				// @why - the sky is already painted under this shape, so a thinner body would still look black.
+				// The shape is cleared first and the black put back at `solid`. Ridges drawn behind this one
+				// go with the sky: the same pixels cannot hide them and show the page.
+				if (K.UNDER < 1) {
+					ctx.save();
+					ctx.globalCompositeOperation = "destination-out";
+					ctx.fillStyle = "#000";
+					ctx.fill();
+					ctx.restore();
+				}
 				if (FEATURES.lit.on && glint > 0.03 && lift > 3) {
 					const body = ctx.createLinearGradient(0, yBase - lift * 1.1, 0, yBase);
 					body.addColorStop(0, rgbString({ r: rgb.r * glint, g: rgb.g * glint, b: rgb.b * glint }, solid));
@@ -919,17 +956,20 @@ function create(): Preset {
 			for (let i = 0; i < POINTS; i++) xs[i] = midAt(K.Z_NOW) + ACROSS[i] * neck;
 			const lineRight = midAt(K.Z_NOW) + K.SIDE * neck;
 			const lineLeft = midAt(K.Z_NOW) - K.SIDE * neck;
-			// 9. colour by note: one gradient across the line, a stop at each lane, opaque (the alpha is set on the context)
-			let noteGrad: CanvasGradient | null = null;
-			if (FEATURES.notes.on && K.NOTE_COLOUR > 0.01) {
-				noteGrad = ctx.createLinearGradient(lineLeft, 0, lineRight, 0);
+			// 9. colour by note: one gradient across the line, a stop at each lane, opaque (the alpha is set on the context).
+			// Built again for the filled line, because that fill is painted after the bank is undone and put back.
+			const makeNoteGrad = () => {
+				if (!(FEATURES.notes.on && K.NOTE_COLOUR > 0.01)) return null;
+				const grad = ctx.createLinearGradient(lineLeft, 0, lineRight, 0);
 				for (let f = 0; f < 12; f++) {
 					const n = noteRgb[f];
 					const m = K.NOTE_COLOUR;
 					const lane = -K.LANE_SPAN + (2 * K.LANE_SPAN * f) / 11;
-					noteGrad.addColorStop((K.SIDE + lane) / (K.SIDE * 2), rgbString({ r: liveRgb.r + (n.r - liveRgb.r) * m, g: liveRgb.g + (n.g - liveRgb.g) * m, b: liveRgb.b + (n.b - liveRgb.b) * m }));
+					grad.addColorStop((K.SIDE + lane) / (K.SIDE * 2), rgbString({ r: liveRgb.r + (n.r - liveRgb.r) * m, g: liveRgb.g + (n.g - liveRgb.g) * m, b: liveRgb.b + (n.b - liveRgb.b) * m }));
 				}
-			}
+				return grad;
+			};
+			const noteGrad = makeNoteGrad();
 			ctx.save();
 			ctx.globalCompositeOperation = "lighter";
 			for (let e = echoes.length - 1; e >= 0; e--) {
@@ -1018,28 +1058,55 @@ function create(): Preset {
 			}
 
 			// ---- the waveform itself, on top -------------------------------------------------------------------------
-			ctx.beginPath();
-			ctx.moveTo(lineLeft, yNow);
-			for (let i = 0; i < POINTS; i++) ctx.lineTo(xs[i], yNow - live[i] * liftNow);
-			ctx.lineTo(lineRight, yNow);
-			if (noteGrad) {
-				ctx.save();
-				ctx.globalAlpha = 0.95;
-				ctx.strokeStyle = noteGrad;
-			} else ctx.strokeStyle = rgbString(liveRgb, 0.95);
-			ctx.lineWidth = Math.max(1.5, scale * 0.0042) * K.LINE;
-			ctx.stroke();
-			if (noteGrad) ctx.restore();
+			// left ground, along the crest, right ground. The crest sits above yNow, so closing the path
+			// runs back along the ground: that is the space under the curve. LINE only thickens the stroke.
+			const traceNow = () => {
+				ctx.beginPath();
+				ctx.moveTo(lineLeft, yNow);
+				for (let i = 0; i < POINTS; i++) ctx.lineTo(xs[i], yNow - live[i] * liftNow);
+				ctx.lineTo(lineRight, yNow);
+			};
+			if (!FEATURES.filled.on) {
+				traceNow();
+				if (noteGrad) {
+					ctx.save();
+					ctx.globalAlpha = 0.95;
+					ctx.strokeStyle = noteGrad;
+				} else ctx.strokeStyle = rgbString(liveRgb, 0.95);
+				ctx.lineWidth = Math.max(1.5, scale * 0.0042) * K.LINE;
+				ctx.stroke();
+				if (noteGrad) ctx.restore();
+			}
 
 			if (banked) ctx.restore();
 
 			// the halo swells with the sound itself and with a moment
 			glow(ctx, ctx.canvas, width, height, scale, (0.3 + c.energy * 0.6 + c.impact * 0.5) * K.GLOW);
+
+			// @why - the glow adds a brightened blur back with "lighter". On a thin stroke that bloom falls on the
+			// black beside it. On a solid fill it stacks across the interior and the colour blows out. Painted
+			// after the glow, the fill stays the stroke's own colour, and it does not grow the thin line's halo.
+			if (FEATURES.filled.on) {
+				if (banked) applyBank();
+				traceNow();
+				ctx.closePath();
+				const fillGrad = makeNoteGrad();
+				const cover = 0.95 * K.UNDER;
+				if (fillGrad) {
+					ctx.save();
+					ctx.globalAlpha = cover;
+					ctx.fillStyle = fillGrad;
+				} else ctx.fillStyle = rgbString(liveRgb, cover);
+				ctx.fill();
+				if (fillGrad) ctx.restore();
+				if (banked) ctx.restore();
+			}
 		},
 		dispose() {
 			rows.clear();
 			gates.clear();
 			glow.dispose();
+			setCanvasHoles(false);
 		}
 	};
 }

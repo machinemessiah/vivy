@@ -171,7 +171,7 @@ export function TunePanel({ presetId, onClose }: { presetId: string; onClose: ()
 								{tuning.features.map((f, i) => (
 									<label key={f.name} className="vivy-tune-feature">
 										<input type="checkbox" checked={f.on} onChange={() => ((f.on = !f.on), refresh())} />
-										{i + 1}. {tr(`${presetId}.${i + 1}`, f.name)}
+										{i < 9 ? `${i + 1}. ` : ""}{tr(`${presetId}.${i + 1}`, f.name)}
 									</label>
 								))}
 								{knobs(tuning.knobs.filter(k => !k.basic))}
