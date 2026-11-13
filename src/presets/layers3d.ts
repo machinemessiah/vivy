@@ -125,7 +125,7 @@ const K = tune("layers3d", {
 	SHEET_WIDTH: [SHEET_WIDTH, 0.0005, 0.02, "sheet ribbon width"],
 	MARK_WIDTH: [MARK_WIDTH, 0.0005, 0.02, "mark ribbon width"],
 	MAX_HALF_WIDTH: [MAX_HALF_WIDTH, 0.001, 0.03, "no ribbon wider than"],
-	GLOW: [1, 0, 2.5, "halo strength", "look"]
+	GLOW: [1, 0, 2.5, "halo strength", "light"]
 	},
 	{
 		ORBIT_RADIUS: "How far the viewpoint is from the middle of the cloud as it circles. Higher pulls out and shows more of the cloud; lower goes deep inside.",

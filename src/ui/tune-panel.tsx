@@ -4,6 +4,7 @@ import { t, tr } from "./text";
 import { Knob, movedText, resetKnobs, setKnob, tuningOf } from "../presets/tune";
 import { ColourSection, LyricsSection, PictureSection } from "./colour-panel";
 import { IconButton, ICON_CLOSE, ICON_COPY, ICON_RESET } from "./icons";
+import { columnSpans, labelIsWide, RangeControl } from "./range-control";
 
 type Tab = "preset" | "colour" | "picture" | "lyrics";
 const TABS: Tab[] = ["preset", "colour", "picture", "lyrics"];
@@ -42,24 +43,29 @@ export function TunePanel({ presetId, onClose }: { presetId: string; onClose: ()
 		window.addEventListener("resize", measureBar);
 		return () => window.removeEventListener("resize", measureBar);
 	}, []);
-	// "More settings" open or closed is remembered
-	const [more, setMore] = useState(() => {
+	// which groups are open. A group with a basic knob starts open; the rest start closed. Remembered per preset.
+	const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+	const groupKey = (name: string) => `${presetId}:${name}`;
+	const groupIsOpen = (name: string, hasBasic: boolean) => {
+		const known = openGroups[groupKey(name)];
+		if (known !== undefined) return known;
 		try {
-			return localStorage.getItem("vivy:more") === "1";
+			const stored = localStorage.getItem(`vivy:group:${groupKey(name)}`);
+			if (stored === "0" || stored === "1") return stored === "1";
 		} catch {
-			return false;
+			// storage denied: the default stands
 		}
-	});
-	const toggleMore = () => {
+		return hasBasic;
+	};
+	const toggleGroup = (name: string, hasBasic: boolean) => {
+		const next = !groupIsOpen(name, hasBasic);
 		setHint(null);
-		setMore(open => {
-			try {
-				localStorage.setItem("vivy:more", open ? "0" : "1");
-			} catch {
-				// storage denied: it opens closed next time
-			}
-			return !open;
-		});
+		setOpenGroups(g => ({ ...g, [groupKey(name)]: next }));
+		try {
+			localStorage.setItem(`vivy:group:${groupKey(name)}`, next ? "1" : "0");
+		} catch {
+			// storage denied: it returns to the default next time
+		}
 	};
 	const [tab, setTab] = useState<Tab>(() => {
 		try {
@@ -99,37 +105,82 @@ export function TunePanel({ presetId, onClose }: { presetId: string; onClose: ()
 	};
 	const showHint = (knob: Knob, row: HTMLElement) =>
 		explain(knob.hint && tr(`${presetId}.${knob.key}.hint`, knob.hint), t("panel.knobFoot", { value: +knob.def.toPrecision(3) }), row);
-	const knobs = (list: Knob[]) => {
-		let group = "";
-		return list.map(k => {
-			const value = tuning!.values[k.key];
-			const head = k.group !== group ? <div className="vivy-tune-group">{tr(`group.${(group = k.group)}`, k.group)}</div> : null;
-			return (
-				<React.Fragment key={k.key}>
-					{head}
-					<div
-						className={`vivy-tune-knob${value !== k.def ? " moved" : ""}`}
-						onMouseEnter={e => showHint(k, e.currentTarget)}
-						onMouseLeave={() => setHint(null)}
-						onFocus={e => showHint(k, e.currentTarget)}
-						onBlur={() => setHint(null)}
-					>
-						<div className="vivy-tune-label" onDoubleClick={() => (setKnob(presetId, k.key, k.def), refresh())}>
-							<span>{tr(`${presetId}.${k.key}`, k.label)}</span>
-							<span>{k.key === "POINTS" ? +value : +value.toPrecision(3)}</span>
-						</div>
-						<input
-							type="range"
-							min={k.min}
-							max={k.max}
-							step={k.key === "POINTS" ? 12 : (k.max - k.min) / 400}
-							value={value}
-							onChange={e => (setKnob(presetId, k.key, Number(e.target.value)), refresh())}
-						/>
-					</div>
-				</React.Fragment>
+	const knobControl = (k: Knob, span: 1 | 2) => {
+		const value = tuning!.values[k.key];
+		const range = k.max - k.min;
+		return (
+			<RangeControl
+				key={k.key}
+				label={tr(`${presetId}.${k.key}`, k.label)}
+				value={value}
+				min={k.min}
+				max={k.max}
+				step={k.key === "POINTS" ? 12 : range / 400}
+				coarse={k.key === "POINTS" ? 12 : range / 40}
+				def={k.def}
+				display={k.key === "POINTS" ? String(+value) : String(+value.toPrecision(3))}
+				span={span}
+				onChange={n => (setKnob(presetId, k.key, n), refresh())}
+				onEnter={row => showHint(k, row)}
+				onLeave={() => setHint(null)}
+			/>
+		);
+	};
+	const groupSection = (name: string, title: string, hasBasic: boolean, children: React.ReactNode) => {
+		const open = groupIsOpen(name, hasBasic);
+		return (
+			<section key={name} className="vivy-tune-group">
+				<button type="button" className="vivy-tune-group-title" aria-expanded={open} onClick={() => toggleGroup(name, hasBasic)}>
+					<span>{title}</span>
+					<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+						<path d="M6 9l6 6 6-6" />
+					</svg>
+				</button>
+				{open ? <div className="vivy-tune-group-body">{children}</div> : null}
+			</section>
+		);
+	};
+	const presetGroups = () => {
+		if (!tuning) return null;
+		const order: string[] = [];
+		const buckets = new Map<string, Knob[]>();
+		for (const k of tuning.knobs) {
+			const name = k.group || "general";
+			if (!buckets.has(name)) {
+				order.push(name);
+				buckets.set(name, []);
+			}
+			buckets.get(name)!.push(k);
+		}
+		const sections = order.map(name => {
+			const list = buckets.get(name)!;
+			const labels = list.map(k => tr(`${presetId}.${k.key}`, k.label));
+			const spans = columnSpans(labels.map(labelIsWide));
+			return groupSection(
+				name,
+				tr(`group.${name}`, name),
+				list.some(k => k.basic),
+				list.map((k, i) => knobControl(k, spans[i] as 1 | 2))
 			);
 		});
+		if (tuning.features.length > 0) {
+			const labels = tuning.features.map((f, i) => `${i < 9 ? `${i + 1}. ` : ""}${tr(`${presetId}.${i + 1}`, f.name)}`);
+			const spans = columnSpans(labels.map(labelIsWide));
+			sections.push(
+				groupSection(
+					"effects",
+					t("panel.effects"),
+					false,
+					tuning.features.map((f, i) => (
+						<label key={f.name} className={`vivy-tune-feature${spans[i] === 2 ? " vivy-span-2" : ""}`}>
+							<input type="checkbox" checked={f.on} onChange={() => ((f.on = !f.on), refresh())} />
+							{labels[i]}
+						</label>
+					))
+				)
+			);
+		}
+		return sections;
 	};
 	return (
 		<>
@@ -154,30 +205,11 @@ export function TunePanel({ presetId, onClose }: { presetId: string; onClose: ()
 					</div>
 				</div>
 				{tab === "preset" ? (
-					<>
-						{!tuning || (tuning.knobs.length === 0 && tuning.features.length === 0) ? <div className="vivy-tune-none">{t("panel.noKnobs")}</div> : null}
-						{tuning ? knobs(tuning.knobs.filter(k => k.basic)) : null}
-						{tuning && (tuning.features.length > 0 || tuning.knobs.some(k => !k.basic)) ? (
-							<button className={`vivy-more${more ? " on" : ""}`} aria-expanded={more} onClick={toggleMore}>
-								<span>{t(more ? "panel.fewer" : "panel.more")}</span>
-								<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-									<path d="M6 9l6 6 6-6" />
-								</svg>
-							</button>
-						) : null}
-						{more && tuning ? (
-							<>
-								{tuning.features.length > 0 ? <div className="vivy-tune-group">{t("panel.effects")}</div> : null}
-								{tuning.features.map((f, i) => (
-									<label key={f.name} className="vivy-tune-feature">
-										<input type="checkbox" checked={f.on} onChange={() => ((f.on = !f.on), refresh())} />
-										{i < 9 ? `${i + 1}. ` : ""}{tr(`${presetId}.${i + 1}`, f.name)}
-									</label>
-								))}
-								{knobs(tuning.knobs.filter(k => !k.basic))}
-							</>
-						) : null}
-					</>
+					!tuning || (tuning.knobs.length === 0 && tuning.features.length === 0) ? (
+						<div className="vivy-tune-none">{t("panel.noKnobs")}</div>
+					) : (
+						presetGroups()
+					)
 				) : null}
 				{tab === "colour" ? (
 					<ColourSection key={presetId} presetId={presetId} panel={panelRef} explain={(text, row) => explain(text, "", row)} unexplain={() => setHint(null)} />

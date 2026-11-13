@@ -3,7 +3,7 @@
 // Declared once at module scope: const K = tune("ridge", { HORIZON: [0.3, 0.1, 0.5, "horizon height", "view"], ... });
 // `K` is the live value object. A moved value is kept across restarts only while the code's default is the one it was moved from.
 export type KnobSpec = readonly [def: number, min: number, max: number, label: string, group?: string];
-// `basic`: one of the few shown by default; the rest wait behind "More"
+// `basic`: a group that contains one starts open; a group with none starts closed
 export type Knob = { key: string; def: number; min: number; max: number; label: string; group: string; hint: string; basic: boolean };
 export type Feature = { name: string; on: boolean };
 export type Tuning = { knobs: Knob[]; values: Record<string, number>; features: Feature[] };

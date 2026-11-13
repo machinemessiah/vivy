@@ -5,6 +5,7 @@ import { BEHIND_LYRICS_DEFAULTS, behindLyrics, setBehindLyrics } from "../behind
 import { t, tr } from "./text";
 import { PRESETS } from "../presets";
 import { currentPicture, isDefaultPicture, Picture, PICTURE_DEFAULTS, PICTURE_RANGE, setPicture } from "./picture";
+import { columnSpans, labelIsWide, RangeControl } from "./range-control";
 
 // The sections of the knobs panel other than the preset's own knobs: colour, picture, lyrics.
 // The colour picker opens beside the panel, because the panel's scrolling would cut it off.
@@ -217,16 +218,21 @@ export function ColourSection({ presetId, panel, explain, unexplain }: {
 					</button>
 				))}
 			</div>
-			<div
-				className="vivy-tune-knob"
-				onMouseEnter={e => explain(t("colour.harmony.hint"), e.currentTarget)}
-				onMouseLeave={unexplain}
-			>
-				<div className="vivy-tune-label" onDoubleClick={() => set({ harmony: 1 })}>
-					<span>{t("colour.harmony")}</span>
-					<span>{colours.harmony.toFixed(2)}</span>
-				</div>
-				<input type="range" min={0} max={1} step={0.01} value={colours.harmony} onChange={e => set({ harmony: Number(e.target.value) })} />
+			<div className="vivy-tune-group-body">
+				<RangeControl
+					label={t("colour.harmony")}
+					value={colours.harmony}
+					min={0}
+					max={1}
+					step={0.01}
+					coarse={1 / 40}
+					def={1}
+					display={colours.harmony.toFixed(2)}
+					span={2}
+					onChange={n => set({ harmony: n })}
+					onEnter={row => explain(t("colour.harmony.hint"), row)}
+					onLeave={unexplain}
+				/>
 			</div>
 			{editing && custom && stops[editing.i] && panel.current?.offsetParent
 				? createPortal(
@@ -252,22 +258,33 @@ type Explain = { explain: (text: string, row: HTMLElement) => void; unexplain: (
 export function PictureSection({ explain, unexplain }: Explain) {
 	const [, redraw] = useState(0);
 	const refresh = () => redraw(n => n + 1);
+	const labels = PICTURE_KNOBS.map(key => t(`picture.${key}`));
+	const spans = columnSpans(labels.map(labelIsWide));
 	return (
 		<>
-			{PICTURE_KNOBS.map(key => (
-				<div
-					key={key}
-					className="vivy-tune-knob"
-					onMouseEnter={e => explain(`${t(`picture.${key}.hint`)} ${t("picture.foot")}`, e.currentTarget)}
-					onMouseLeave={unexplain}
-				>
-					<div className="vivy-tune-label" onDoubleClick={() => (setPicture({ [key]: PICTURE_DEFAULTS[key] }), refresh())}>
-						<span>{t(`picture.${key}`)}</span>
-						<span>{currentPicture()[key].toFixed(2)}</span>
-					</div>
-					<input type="range" min={PICTURE_RANGE[key][0]} max={PICTURE_RANGE[key][1]} step={0.01} value={currentPicture()[key]} onChange={e => (setPicture({ [key]: Number(e.target.value) }), refresh())} />
-				</div>
-			))}
+			<div className="vivy-tune-group-body">
+				{PICTURE_KNOBS.map((key, i) => {
+					const value = currentPicture()[key];
+					const [min, max] = PICTURE_RANGE[key];
+					return (
+						<RangeControl
+							key={key}
+							label={labels[i]}
+							value={value}
+							min={min}
+							max={max}
+							step={0.01}
+							coarse={(max - min) / 40}
+							def={PICTURE_DEFAULTS[key]}
+							display={value.toFixed(2)}
+							span={(spans[i] as 1 | 2) ?? 1}
+							onChange={n => (setPicture({ [key]: n }), refresh())}
+							onEnter={row => explain(`${t(`picture.${key}.hint`)} ${t("picture.foot")}`, row)}
+							onLeave={unexplain}
+						/>
+					);
+				})}
+			</div>
 			<div className="vivy-seg">
 				<button disabled={isDefaultPicture()} onClick={() => (setPicture(PICTURE_DEFAULTS), refresh())}>
 					{t("picture.reset")}
@@ -297,16 +314,21 @@ export function LyricsSection({ explain, unexplain }: Explain) {
 					</button>
 				))}
 			</div>
-			<div
-				className="vivy-tune-knob"
-				onMouseEnter={e => explain(t("lyrics.dim.hint"), e.currentTarget)}
-				onMouseLeave={unexplain}
-			>
-				<div className="vivy-tune-label" onDoubleClick={() => (setBehindLyrics({ dim: BEHIND_LYRICS_DEFAULTS.dim }), refresh())}>
-					<span>{t("lyrics.dim")}</span>
-					<span>{lyrics.dim.toFixed(2)}</span>
-				</div>
-				<input type="range" min={0} max={0.9} step={0.01} value={lyrics.dim} onChange={e => (setBehindLyrics({ dim: Number(e.target.value) }), refresh())} />
+			<div className="vivy-tune-group-body">
+				<RangeControl
+					label={t("lyrics.dim")}
+					value={lyrics.dim}
+					min={0}
+					max={0.9}
+					step={0.01}
+					coarse={0.9 / 40}
+					def={BEHIND_LYRICS_DEFAULTS.dim}
+					display={lyrics.dim.toFixed(2)}
+					span={2}
+					onChange={n => (setBehindLyrics({ dim: n }), refresh())}
+					onEnter={row => explain(t("lyrics.dim.hint"), row)}
+					onLeave={unexplain}
+				/>
 			</div>
 		</>
 	);

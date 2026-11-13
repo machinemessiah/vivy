@@ -97,7 +97,6 @@ const SKY_WIDTH = 1.146;
 const SKY_BRIGHT = 0.425;
 
 const K = tune("ridge", {
-	POINTS: [POINTS, 96, 1200, "points per row"],
 	FUTURE_BEATS: [FUTURE_BEATS, 4, 40, "beats of the future on screen", "time"],
 	PAST_BEATS: [PAST_BEATS, 1, 8, "beats of the past"],
 	ROW_GAP_MIN: [ROW_GAP_MIN, 0.05, 1, "rows no closer than, beats"],
@@ -116,6 +115,7 @@ const K = tune("ridge", {
 	LATELY_LOUD: [LATELY_LOUD, 0.45, 1, "level that counts as loud"],
 	LEAD_FULL: [LEAD_FULL, 0.02, 0.5, "build that crouches it fully"],
 	LANE_SPAN: [LANE_SPAN, 0.1, 1, "how wide the pitch lanes spread", "shape"],
+	POINTS: [POINTS, 96, 1200, "points per row", "shape"],
 	HILL: [HILL, 0.03, 0.5, "width of one note hill"],
 	RIDGE_LIMIT: [RIDGE_LIMIT, 0.3, 4, "tallest before rounding off"],
 	JAG: [JAG, 0, 1, "how jagged a sharp sound is"],
@@ -129,7 +129,7 @@ const K = tune("ridge", {
 	GLOW: [1, 0, 2.5, "halo strength", "look"],
 	LINE: [1, 0.4, 3, "thickness of the bright line"],
 	DUST_LIGHT: [1, 0, 3, "dust brightness"],
-	SWAY: [1, 0, 3, "camera sway"],
+	SWAY: [1, 0, 3, "camera sway", "camera"],
 	STRAND_SPREAD: [0.4, 0, 1, "how far a strand spreads", "strands"],
 	STRAND_WAVE: [0, 0, 1, "how much a strand rings as a wave"],
 	STRAND_LIGHT: [1, 0, 3, "strand brightness"],

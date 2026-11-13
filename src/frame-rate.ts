@@ -25,7 +25,7 @@ export function setFrameRate(fps: FrameRate) {
 	}
 }
 
-const MAX_PIXELS = 2560 * 1440; /// 1920 * 1080;
+const MAX_PIXELS = 1920 * 1080; /// 2560 * 1440; 
 
 // Device pixels to draw a canvas at. Fills cost by area: above 1080p it renders smaller and CSS stretches it.
 export function renderSize(canvas: HTMLCanvasElement, ratio: number) {

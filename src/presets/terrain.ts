@@ -72,7 +72,7 @@ const K = tune(
 		LANE_LINES: [1, 0, 3, "note lines"],
 		CONTOUR_LIGHT: [0.6, 0, 2, "contour lines"],
 		CONTOUR_COUNT: [8, 2, 40, "height of a contour step, in steps"],
-		FOG: [0.45, 0, 1, "where the fog begins", "depth"],
+		FOG: [0.45, 0, 1, "where the fog begins", "look"],
 		GLOW: [1, 0, 2.5, "halo strength", "look"],
 		LINE: [1, 0.4, 3, "thickness of the lines"],
 		DUST_LIGHT: [1, 0, 3, "dust brightness"],

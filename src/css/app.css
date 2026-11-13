@@ -3,6 +3,7 @@
 	--vivy-accent: #5de6f0;
 	--vivy-accent-tint: rgba(93, 230, 240, 0.14);
 	--vivy-accent-edge: rgba(93, 230, 240, 0.38);
+	--vivy-width: clamp(35%, 500px, 50%);
 	position: relative;
 	width: 100%;
 	height: 100%;
@@ -250,7 +251,7 @@
 	top: 80px;
 	right: 24px;
 	bottom: 20px;
-	width: 300px;
+	width: var(--vivy-width);
 	overflow-y: auto;
 	z-index: 3;
 	padding: 10px 14px 14px;
@@ -296,74 +297,170 @@
 }
 
 .vivy-tune-group {
-	margin: 12px 0 4px;
+	margin: 10px 0 0;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 10px;
+	background: rgba(0, 0, 0, 0.28);
+}
+
+.vivy-tune-group-title {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	width: 100%;
+	padding: 8px 10px;
+	font: inherit;
 	font-size: 11px;
-	text-transform: uppercase;
 	letter-spacing: 0.08em;
-	color: rgba(255, 255, 255, 0.45);
+	text-transform: uppercase;
+	color: rgba(255, 255, 255, 0.55);
+	background: transparent;
+	border: 0;
+	cursor: pointer;
+}
+
+.vivy-tune-group-title svg {
+	margin-left: auto;
+	transition: transform 0.2s ease;
+}
+
+.vivy-tune-group-title[aria-expanded="false"] svg {
+	transform: rotate(-90deg);
+}
+
+.vivy-tune-group-title:hover {
+	color: #fff;
+}
+
+.vivy-tune-group-body {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+	padding: 0 8px 8px;
+}
+
+.vivy-span-2 {
+	grid-column: span 2;
 }
 
 .vivy-tune-feature {
 	display: flex;
-	gap: 6px;
+	gap: 8px;
 	align-items: center;
-	padding: 2px 0;
+	padding: 8px 10px;
+	font-size: 13px;
+	line-height: 1.3;
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 8px;
 	cursor: pointer;
 }
 
 .vivy-tune-knob {
-	padding: 3px 0;
+	padding: 8px 10px;
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 8px;
 }
 
 .vivy-tune-label {
 	display: flex;
 	justify-content: space-between;
+	gap: 8px;
+	font-size: 13px;
+	line-height: 1.3;
 	cursor: default;
 	user-select: none;
+}
+
+.vivy-tune-label span:last-child {
+	flex: none;
+	font-variant-numeric: tabular-nums;
+	opacity: 0.7;
 }
 
 .vivy-tune-knob.moved .vivy-tune-label {
 	color: #ffd479;
 }
 
-.vivy-tune-knob input,
 .vivy-tune-feature input {
 	accent-color: var(--vivy-accent);
 }
 
-/* a thin rail with a round handle instead of the browser's thick default */
+.vivy-tune-row {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	margin-top: 8px;
+}
+
+/* the track is as thick as its thumb; the accent runs up to the thumb and the rest stays dim */
 .vivy-tune-knob input {
+	--fill: 0%;
+	flex: 1;
 	width: 100%;
-	height: 14px;
-	margin: 2px 0 0;
+	height: 18px;
+	margin: 0;
 	appearance: none;
 	background: transparent;
 	cursor: pointer;
 }
 
 .vivy-tune-knob input::-webkit-slider-runnable-track {
-	height: 3px;
-	border-radius: 2px;
-	background: rgba(255, 255, 255, 0.16);
+	height: 18px;
+	border-radius: 999px;
+	background: linear-gradient(to right, var(--vivy-accent) var(--fill), rgba(255, 255, 255, 0.16) var(--fill));
+}
+
+.vivy-tune-knob.moved input::-webkit-slider-runnable-track {
+	background: linear-gradient(to right, #ffd479 var(--fill), rgba(255, 255, 255, 0.16) var(--fill));
 }
 
 .vivy-tune-knob input::-webkit-slider-thumb {
 	appearance: none;
-	width: 12px;
-	height: 12px;
-	margin-top: -4.5px;
+	width: 18px;
+	height: 18px;
+	margin-top: 0;
+	border: 0;
 	border-radius: 50%;
-	background: var(--vivy-accent);
-	transition: transform 0.12s;
+	background: #fff;
+	box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
 }
 
-.vivy-tune-knob input:hover::-webkit-slider-thumb,
-.vivy-tune-knob input:focus-visible::-webkit-slider-thumb {
-	transform: scale(1.25);
+.vivy-tune-step {
+	display: flex;
+	flex: none;
+	flex-direction: column;
+	width: 44px;
+	height: 44px;
+	overflow: hidden;
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	border-radius: 8px;
 }
 
-.vivy-tune-knob.moved input::-webkit-slider-thumb {
-	background: #ffd479;
+.vivy-tune-step button {
+	display: grid;
+	flex: 1;
+	place-items: center;
+	padding: 0;
+	color: rgba(255, 255, 255, 0.75);
+	background: rgba(255, 255, 255, 0.06);
+	border: 0;
+	cursor: pointer;
+}
+
+.vivy-tune-step button + button {
+	border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.vivy-tune-step button:hover {
+	color: #fff;
+	background: rgba(255, 255, 255, 0.14);
+}
+
+.vivy-tune-step svg {
+	width: 14px;
+	height: 14px;
 }
 
 /* the panel's own scrollbar is hidden (Spotify's styling of it wins over ours); a hairline drawn beside
