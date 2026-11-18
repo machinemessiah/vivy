@@ -71,6 +71,8 @@ export const app: Record<string, string> = {
 	"picture.transparency": "Transparenz",
 	"picture.transparency.hint":
 		"Dünnt das Schwarz unter den Linien aus. Bei einem Theme mit Bild scheint das Bild durch; beim normalen Spotify das Cover, unscharf.",
+	"picture.scaleY": "vertikale Skalierung",
+	"picture.scaleY.hint": "Streckt die Zeichenfläche in der Höhe, vom unteren Rand. 1 lässt sie unverändert.",
 	"picture.foot": "Gilt für alle Presets. Doppelklick auf den Namen setzt zurück.",
 	"picture.reset": "Bild zurücksetzen",
 
@@ -134,6 +136,8 @@ export const app: Record<string, string> = {
 	"ridge.RIDGE.hint": "Wie hoch die Berge sind. Mehr lässt laute Klänge aufragen; weniger macht die ganze Landschaft flacher.",
 	"ridge.HALF_WIDTH": "Geländebreite",
 	"ridge.HALF_WIDTH.hint": "Wie breit das Gelände ist. Mehr zieht die Berge weiter auseinander; weniger rückt sie zur Mitte.",
+	"ridge.FUNNEL": "Verjüngung der Breite",
+	"ridge.FUNNEL.hint": "Wie weit sich die Berge zum Horizont hin öffnen. Null behält die übliche Perspektive, in der Ferne schmal. Mehr öffnet die fernen Berge bis an die Bildränder und verengt die helle Linie; was schon gespielt wurde, läuft nach unten wieder auseinander.",
 	"ridge.SIDE": "flacher Auslauf zu den Seiten",
 	"ridge.SIDE.hint":
 		"Wie weit der flache Boden links und rechts der Berge weiterläuft, bevor er ausblendet. Mehr gibt längere flache Linien an den Rändern.",
@@ -153,6 +157,8 @@ export const app: Record<string, string> = {
 	"ridge.LEAD_FULL.hint": "Wie groß eine kommende Steigerung sein muss, damit die Ansicht sich davor ganz duckt. Weniger lässt sie auch bei kleinen Steigerungen ducken.",
 	"ridge.LANE_SPAN": "Breite der Tonbahnen",
 	"ridge.LANE_SPAN.hint": "Wie weit die Töne über eine Reihe verteilt sind. Mehr verteilt die Berge über die Breite; weniger bündelt sie in der Mitte.",
+	"ridge.POINTS": "Punkte je Reihe",
+	"ridge.POINTS.hint": "Mit wie vielen Punkten jede Reihe gezeichnet wird. Mehr macht die Reihen glatter; weniger macht sie gröber.",
 	"ridge.HILL": "Breite eines Tonhügels",
 	"ridge.HILL.hint": "Wie breit der Hügel jedes Tons ist. Mehr ergibt breite, sanfte Berge, die ineinanderfließen; weniger dünne, getrennte Spitzen.",
 	"ridge.RIDGE_LIMIT": "Höhe vor dem Abrunden",
@@ -191,8 +197,11 @@ export const app: Record<string, string> = {
 
 	"group.strands": "Stränge",
 	"group.style": "Stil",
+	"group.opacity": "Deckkraft",
 	"ridge.8": "Tonhöhen-Stränge",
 	"ridge.9": "Farbe nach Ton",
+	"ridge.10": "gefüllte Jetzt-Linie",
+	"ridge.11": "gedrehte Kopie",
 	"ridge.STRAND_SPREAD": "Breite eines Strangs",
 	"ridge.STRAND_SPREAD.hint": "Wie breit der Strang jedes Tons ist (Taste 8). Null behält den schmalen Hügel der Berge; mehr ergibt breite Wellen, die sich überlappen und kreuzen.",
 	"ridge.STRAND_WAVE": "wie sehr ein Strang als Welle klingt",
@@ -217,6 +226,12 @@ export const app: Record<string, string> = {
 	"ridge.LANE_ORDER.hint": "Wo die zwölf Töne im Gelände stehen. Null ist der Quintenzirkel, ein Akkord also ein Berg; eins ist nach Halbtönen, ein Akkord verteilt sich.",
 	"ridge.PULSE": "Taktschwellen im Gelände",
 	"ridge.PULSE.hint": "Macht die Reihen auf dem Schlag etwas höher als die dazwischen, sodass der Takt durch das Gelände auf dich zurollt. Null hält sie gleich.",
+	"ridge.SKY": "Deckkraft des Himmels",
+	"ridge.SKY.hint": "Wie dicht das Schwarz über den Bergen ist. Bei 1 ist der Himmel schwarz; weniger öffnet ihn auf die Seite dahinter. Das Horizontleuchten und der Staub bleiben darüber gezeichnet.",
+	"ridge.BELOW": "Deckkraft unter der Jetzt-Linie",
+	"ridge.BELOW.hint": "Wie dicht das Schwarz unter der Jetzt-Linie ist. Bei 1 ist es schwarz; weniger öffnet diesen Boden auf die Seite. Bereits abgesunkene Berge zeichnen sich weiterhin darüber.",
+	"ridge.UNDER": "Deckkraft unter den Bergen",
+	"ridge.UNDER.hint": "Wie dicht das Schwarz unter jedem Berg ist. Die Kammlinien bleiben. Bei 1 verdeckt eine Reihe, was dahinter liegt; weniger lässt die Seite durch, und die Berge dahinter scheinen mit durch. Die gefüllte Jetzt-Linie wird damit ebenfalls dünner. Wie massiv der Körper ist, bestimmt weiterhin der Regler für die Berge.",
 
 	"layers3d.ORBIT_RADIUS": "Umlaufabstand",
 	"layers3d.ORBIT_RADIUS.hint":

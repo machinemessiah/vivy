@@ -73,6 +73,8 @@ export const EN = {
 	"picture.transparency": "transparency",
 	"picture.transparency.hint":
 		"Thins the black under the lines. With a theme that has a picture, the picture shows through; with Spotify's own look, the cover, blurred.",
+	"picture.scaleY": "vertical scale",
+	"picture.scaleY.hint": "Stretches the canvas vertically, from the bottom. 1 leaves it as it is.",
 	"picture.foot": "Applies to every preset. Double-click the name to reset.",
 	"picture.reset": "Reset picture",
 

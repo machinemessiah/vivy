@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FRAME_RATES, frameRate, setFrameRate } from "../frame-rate";
 import { t, tr } from "./text";
-import { Knob, movedText, resetKnobs, setKnob, tuningOf } from "../presets/tune";
+import { Knob, movedText, resetKnobs, setKnob, toggleFeature, tuningOf } from "../presets/tune";
 import { ColourSection, LyricsSection, PictureSection } from "./colour-panel";
 import { IconButton, ICON_CLOSE, ICON_COPY, ICON_RESET } from "./icons";
 import { columnSpans, labelIsWide, RangeControl } from "./range-control";
@@ -12,7 +12,7 @@ const TABS: Tab[] = ["preset", "colour", "picture", "lyrics"];
 // The knobs panel (T), in tabs. Preset: the preset on screen's numbers as sliders, double-click a name
 // to reset it, "Copy" puts the moved values on the clipboard, to become the new defaults in tune(...).
 export function TunePanel({ presetId, onClose }: { presetId: string; onClose: () => void }) {
-	const [, redraw] = useState(0);
+	const [redrawn, redraw] = useState(0);
 	// drawn beside the panel, where its scrolling cannot cut it off
 	const [hint, setHint] = useState<{ text: string; foot: string; top: number; right: number } | null>(null);
 	const panelRef = useRef<HTMLDivElement>(null);
@@ -25,12 +25,12 @@ export function TunePanel({ presetId, onClose }: { presetId: string; onClose: ()
 		if (!p || !parent || p.scrollHeight <= p.clientHeight + 1) return setBar(b => (b ? null : b));
 		const box = parent.getBoundingClientRect();
 		const r = p.getBoundingClientRect();
-		const height = Math.max(24, (p.clientHeight / p.scrollHeight) * (r.height - 16));
-		const top = r.top - box.top + 8 + (p.scrollTop / (p.scrollHeight - p.clientHeight)) * (r.height - 16 - height);
-		const right = box.right - r.right + 3;
-		setBar(b => (b && Math.abs(b.top - top) < 0.5 && Math.abs(b.height - height) < 0.5 && b.right === right ? b : { top, height, right }));
+		// @why - whole pixels. A fractional right never matched, so the layout effect set state again forever
+		const height = Math.round(Math.max(24, (p.clientHeight / p.scrollHeight) * (r.height - 16)));
+		const top = Math.round(r.top - box.top + 8 + (p.scrollTop / (p.scrollHeight - p.clientHeight)) * (r.height - 16 - height));
+		const right = Math.round(box.right - r.right + 3);
+		setBar(b => (b && b.top === top && b.height === height && b.right === right ? b : { top, height, right }));
 	};
-	useLayoutEffect(measureBar);
 	// a hint beside one of the lowest rows would run past the window's edge
 	useLayoutEffect(() => {
 		const el = hintRef.current;
@@ -75,6 +75,8 @@ export function TunePanel({ presetId, onClose }: { presetId: string; onClose: ()
 			return "preset";
 		}
 	});
+	// @why - not after painting the thumb. That measurement was the update that looped
+	useLayoutEffect(measureBar, [presetId, tab, redrawn, openGroups]);
 	const chooseTab = (id: Tab) => {
 		setHint(null);
 		setTab(id);
@@ -173,7 +175,7 @@ export function TunePanel({ presetId, onClose }: { presetId: string; onClose: ()
 					false,
 					tuning.features.map((f, i) => (
 						<label key={f.name} className={`vivy-tune-feature${spans[i] === 2 ? " vivy-span-2" : ""}`}>
-							<input type="checkbox" checked={f.on} onChange={() => ((f.on = !f.on), refresh())} />
+							<input type="checkbox" checked={f.on} onChange={() => (toggleFeature(presetId, f), refresh())} />
 							{labels[i]}
 						</label>
 					))

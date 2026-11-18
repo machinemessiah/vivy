@@ -1,6 +1,6 @@
 // Ridgeline: the whole song as a terrain flying at the viewer. A row is one sound (height: loudness,
 // shape: harmony in fifths), depth is time, the bright line is "now", echoes are afterimages of sounds.
-// Keys 1-9 toggle the first extras (FEATURES). The filled line is panel-only: there is no key 10.
+// Keys 1-9 toggle the first extras (FEATURES). The filled line and the turned copy are panel-only: there is no key 10 or 11.
 // Ridgeline plot: rows drawn far to near, each filled so it hides what is behind it.
 import { createNoise2D } from "simplex-noise";
 import { createGlow, createKeyHue, keyHueAt } from "./effects";
@@ -8,7 +8,7 @@ import { createConductor } from "./conductor";
 import { accentLightness, colourSettings, familyHue, GREY, hslToRgb, palette, paletteAt, Rgb } from "../colours";
 import { rankOf, sampleCurve, segmentAt, TrackAudioData } from "../audio-data";
 import { Preset, PresetDefinition, rgbString } from "./types";
-import { tune, tuneFeatures, tuneVersion } from "./tune";
+import { toggleFeature, tune, tuneFeatures, tuneVersion } from "./tune";
 import { setCanvasHoles } from "../ui/picture";
 
 // ---- the extras, in the order of their keys ---------------------------------------------------------
@@ -23,7 +23,9 @@ const FEATURES = {
 	strands: { name: "pitch strands", on: true },
 	notes: { name: "colour by note", on: true },
 	// off: the current moment stays a stroke, and LINE sets its thickness
-	filled: { name: "filled now line", on: false }
+	filled: { name: "filled now line", on: false },
+	// the same frame, upright above and turned 180 below
+	turned: { name: "flipped duplicate", on: false }
 };
 const FEATURE_KEYS = Object.values(FEATURES);
 tuneFeatures("ridge", FEATURE_KEYS);
@@ -33,7 +35,7 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
 		const detail = (event as CustomEvent<{ preset: string | null; n: number } | null>).detail;
 		const feature = detail && detail.preset === ridgePreset.id ? FEATURE_KEYS[detail.n - 1] : undefined;
 		if (!feature) return;
-		feature.on = !feature.on;
+		toggleFeature(ridgePreset.id, feature);
 		if (typeof Spicetify !== "undefined") Spicetify.showNotification(`Ridgeline ${detail!.n}: ${feature.name} ${feature.on ? "ON" : "off"}`);
 	});
 }
@@ -315,6 +317,12 @@ function create(): Preset {
 	const conduct = createConductor();
 	const keyHue = createKeyHue();
 	const glow = createGlow();
+	// @what - the finished frame, copied into the two halves when the turned copy is on
+	// @why - painted at full height, then squashed; drawing straight into half the canvas would change the picture
+	const plate = document.createElement("canvas");
+	const plateCtx = plate.getContext("2d");
+	// the on-screen canvas, so dispose can take the turned origin off it
+	let host: HTMLCanvasElement | null = null;
 
 	// rows keyed by index on the beat grid, cached while on screen; gates sit at section boundaries
 	const rows = new Map<number, Float32Array>();
@@ -480,7 +488,9 @@ function create(): Preset {
 
 	return {
 		draw(frame) {
-			const { ctx, width, height, isPlaying, colorRgb, audio, progressSec } = frame;
+			const { width, height, isPlaying, colorRgb, audio, progressSec } = frame;
+			const display = frame.ctx;
+			let ctx = display;
 			// paused: draw one frame, then nothing until the track, position, size, a knob or a feature changes
 			// (Spotify opens paused). The terrain is placed at the paused moment directly, without the rise.
 			const still = isPlaying ? "" : [progressSec, width, height, tuneVersion(), FEATURE_KEYS.map(f => +f.on).join("")].join("|");
@@ -492,6 +502,17 @@ function create(): Preset {
 				viewTime = progressSec;
 				presence = shown ? 1 : 0;
 			} else pausedAt = "";
+			// @what - paint this frame on the offscreen canvas when the turned copy is on
+			// @why - the visible canvas only receives the two scaled halves; the scene still uses the full height
+			let halves = false;
+			if (FEATURES.turned.on && plateCtx) {
+				if (plate.width !== width || plate.height !== height) {
+					plate.width = width;
+					plate.height = height;
+				}
+				ctx = plateCtx;
+				halves = true;
+			} else if (plate.width) plate.width = plate.height = 0;
 			const c = conduct(frame);
 			const scale = c.scale;
 
@@ -767,7 +788,7 @@ function create(): Preset {
 				if (K.UNDER < 1) {
 					ctx.save();
 					ctx.globalCompositeOperation = "destination-out";
-					ctx.fillStyle = "#000";
+					ctx.fillStyle = rgbString(BLACK);
 					ctx.fill();
 					ctx.restore();
 				}
@@ -1101,11 +1122,36 @@ function create(): Preset {
 				if (fillGrad) ctx.restore();
 				if (banked) ctx.restore();
 			}
+
+			if (halves) {
+				// @what - upright copy in the top half, the same frame rotated 180 in the bottom half
+				// @why - each copy is the full picture, then its height is scaled so the two fill the canvas
+				const half = height / 2;
+				display.save();
+				display.imageSmoothingEnabled = true;
+				display.imageSmoothingQuality = "high";
+				display.clearRect(0, 0, width, height);
+				display.drawImage(plate, 0, 0, width, height, 0, 0, width, half);
+				display.translate(width, height);
+				display.rotate(Math.PI);
+				display.drawImage(plate, 0, 0, width, height, 0, 0, width, half);
+				display.restore();
+			}
+			// @what - center the canvas scale while the flipped duplicate is on
+			// @why - bottom center is the usual origin; the two halves meet in the middle, so that origin sits on the seam
+			host = display.canvas ?? null;
+			if (host) {
+				if (halves) host.dataset.turned = "";
+				else delete host.dataset.turned;
+			}
 		},
 		dispose() {
 			rows.clear();
 			gates.clear();
 			glow.dispose();
+			plate.width = plate.height = 0;
+			if (host) delete host.dataset.turned;
+			host = null;
 			setCanvasHoles(false);
 		}
 	};

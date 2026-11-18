@@ -72,6 +72,8 @@ export const app: Record<string, string> = {
 	"picture.transparency": "transparência",
 	"picture.transparency.hint":
 		"Afina o preto sob as linhas. Com um tema que tem imagem, a imagem aparece por trás; com o visual padrão do Spotify, a capa desfocada.",
+	"picture.scaleY": "escala vertical",
+	"picture.scaleY.hint": "Estica a tela na vertical a partir de baixo. 1 deixa como está.",
 	"picture.foot": "Vale para todos os presets. Clique duas vezes no nome para restaurar.",
 	"picture.reset": "Restaurar imagem",
 
@@ -135,6 +137,8 @@ export const app: Record<string, string> = {
 	"ridge.RIDGE.hint": "Altura das montanhas. Mais faz os sons fortes se elevarem; menos deixa a paisagem inteira mais plana.",
 	"ridge.HALF_WIDTH": "largura do terreno",
 	"ridge.HALF_WIDTH.hint": "Largura do terreno. Mais abre as montanhas; menos as junta no meio.",
+	"ridge.FUNNEL": "afunilamento da largura",
+	"ridge.FUNNEL.hint": "O quanto as cristas se abrem em direção ao horizonte. Zero mantém a perspectiva de sempre, estreita ao longe. Mais abre as cristas distantes até as bordas da tela e estreita a linha brilhante; o que já tocou volta a se abrir para baixo.",
 	"ridge.SIDE": "trecho plano nas laterais",
 	"ridge.SIDE.hint":
 		"Até onde o chão plano continua à esquerda e à direita das montanhas antes de sumir. Mais dá linhas planas mais longas nas bordas.",
@@ -154,6 +158,8 @@ export const app: Record<string, string> = {
 	"ridge.LEAD_FULL.hint": "Quão grande um crescendo que vem precisa ser para a vista se abaixar por inteiro antes dele. Menos a faz abaixar também em crescendos pequenos.",
 	"ridge.LANE_SPAN": "largura das faixas de notas",
 	"ridge.LANE_SPAN.hint": "Quão afastadas as notas ficam ao longo de uma linha. Mais espalha as montanhas pela largura; menos as agrupa no meio.",
+	"ridge.POINTS": "pontos por fileira",
+	"ridge.POINTS.hint": "Com quantos pontos cada fileira é desenhada. Mais deixa as fileiras mais lisas; menos as deixa mais grosseiras.",
 	"ridge.HILL": "largura do morro de uma nota",
 	"ridge.HILL.hint": "Largura do morro de cada nota. Mais dá montanhas largas e onduladas que se fundem; menos, picos finos e separados.",
 	"ridge.RIDGE_LIMIT": "altura antes de arredondar",
@@ -192,8 +198,11 @@ export const app: Record<string, string> = {
 
 	"group.strands": "fios",
 	"group.style": "estilo",
+	"group.opacity": "opacidade",
 	"ridge.8": "fios de altura",
 	"ridge.9": "cor por nota",
+	"ridge.10": "linha de agora preenchida",
+	"ridge.11": "cópia virada",
 	"ridge.STRAND_SPREAD": "quanto um fio se abre",
 	"ridge.STRAND_SPREAD.hint": "Quão largo é o fio de cada nota (tecla 8). Zero mantém a colina estreita das montanhas; mais dá ondulações largas que se sobrepõem e se cruzam.",
 	"ridge.STRAND_WAVE": "quanto um fio soa como onda",
@@ -218,6 +227,12 @@ export const app: Record<string, string> = {
 	"ridge.LANE_ORDER.hint": "Onde as doze notas ficam no terreno. Zero é o círculo das quintas, e um acorde é uma montanha; um é por semitons, e o acorde se espalha.",
 	"ridge.PULSE": "ondulação do compasso no terreno",
 	"ridge.PULSE.hint": "Faz as fileiras sobre a batida um pouco mais altas que as do meio, e o compasso rola pelo terreno até você. Zero as deixa iguais.",
+	"ridge.SKY": "opacidade do céu",
+	"ridge.SKY.hint": "Quão sólido é o preto acima das cristas. Com 1 o céu é preto; menos o abre para a página atrás. O brilho do horizonte e a poeira continuam desenhados por cima.",
+	"ridge.BELOW": "opacidade abaixo da linha de agora",
+	"ridge.BELOW.hint": "Quão sólido é o preto abaixo da linha de agora. Com 1 ele é preto; menos abre esse chão para a página. As cristas que já afundaram continuam desenhadas por cima.",
+	"ridge.UNDER": "opacidade sob as cristas",
+	"ridge.UNDER.hint": "Quão sólido é o preto sob cada crista. As linhas da crista ficam. Com 1 uma fileira esconde o que está atrás; menos deixa a página passar, e as cristas de trás aparecem junto. A linha de agora preenchida também fica mais fina. O quão sólidas são as montanhas ainda define o corpo antes disso.",
 
 	"layers3d.ORBIT_RADIUS": "distância da órbita",
 	"layers3d.ORBIT_RADIUS.hint":

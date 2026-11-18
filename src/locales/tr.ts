@@ -71,6 +71,8 @@ export const app: Record<string, string> = {
 	"picture.transparency": "saydamlık",
 	"picture.transparency.hint":
 		"Çizgilerin altındaki siyahı inceltir. Resmi olan bir temada o resim arkadan görünür; Spotify'ın kendi görünümünde bulanık kapak.",
+	"picture.scaleY": "dikey ölçek",
+	"picture.scaleY.hint": "Tuvali alttan dikey uzatır. 1 olduğu gibi bırakır.",
 	"picture.foot": "Tüm ön ayarlar için geçerli. Sıfırlamak için ada çift tıkla.",
 	"picture.reset": "Görüntüyü sıfırla",
 
@@ -134,6 +136,8 @@ export const app: Record<string, string> = {
 	"ridge.RIDGE.hint": "Dağların yüksekliği. Artırmak yüksek sesleri yükseltir; azaltmak tüm manzarayı düzleştirir.",
 	"ridge.HALF_WIDTH": "arazi genişliği",
 	"ridge.HALF_WIDTH.hint": "Arazinin genişliği. Artırmak dağları yana açar; azaltmak ortada toplar.",
+	"ridge.FUNNEL": "genişlik daralması",
+	"ridge.FUNNEL.hint": "Sırtların ufka doğru ne kadar açıldığı. Sıfır alışılmış perspektifi korur, uzakta dar. Artırmak uzak sırtları ekranın kenarlarına kadar açar ve parlak çizgiyi daraltır; çalınmış olan alta doğru yeniden yayılır.",
 	"ridge.SIDE": "yanlardaki düz uzantı",
 	"ridge.SIDE.hint": "Düz zeminin dağların sağında ve solunda kaybolmadan önce ne kadar sürdüğü. Artırmak kenarlarda daha uzun düz çizgiler verir.",
 	"ridge.FINE_UNTIL": "tam ayrıntı mesafesi",
@@ -152,6 +156,8 @@ export const app: Record<string, string> = {
 	"ridge.LEAD_FULL.hint": "Görüşün önünde tamamen çömelmesi için gelen yükselişin ne kadar büyük olması gerektiği. Azaltmak küçük yükselişlerde de çömeltir.",
 	"ridge.LANE_SPAN": "nota şeritlerinin açıklığı",
 	"ridge.LANE_SPAN.hint": "Notaların bir sıra boyunca ne kadar ayrık dizildiği. Artırmak dağları genişliğe yayar; azaltmak ortada toplar.",
+	"ridge.POINTS": "satır başına nokta",
+	"ridge.POINTS.hint": "Her satırın kaç noktayla çizildiği. Artırmak satırları daha pürüzsüz, azaltmak daha kaba yapar.",
 	"ridge.HILL": "bir notanın tepe genişliği",
 	"ridge.HILL.hint": "Her notanın tepesinin genişliği. Artırmak birbirine karışan geniş, yumuşak dağlar yapar; azaltmak ince, ayrı sivrilikler.",
 	"ridge.RIDGE_LIMIT": "yuvarlanmadan önceki en yüksek",
@@ -190,8 +196,11 @@ export const app: Record<string, string> = {
 
 	"group.strands": "teller",
 	"group.style": "stil",
+	"group.opacity": "opaklık",
 	"ridge.8": "perde telleri",
 	"ridge.9": "notaya göre renk",
+	"ridge.10": "dolu şimdi çizgisi",
+	"ridge.11": "döndürülmüş kopya",
 	"ridge.STRAND_SPREAD": "bir telin yayılması",
 	"ridge.STRAND_SPREAD.hint": "Her notanın telinin ne kadar geniş olduğu (8 tuşu). Sıfır dağların dar tepesini korur; artırmak üst üste binip kesişen geniş kabarmalar verir.",
 	"ridge.STRAND_WAVE": "telin dalga gibi çınlaması",
@@ -216,6 +225,12 @@ export const app: Record<string, string> = {
 	"ridge.LANE_ORDER.hint": "On iki notanın arazide nerede durduğu. Sıfır beşliler çemberidir, yani bir akor tek dağdır; bir yarım ton sırasıdır, akor yayılır.",
 	"ridge.PULSE": "arazide vuruş kabarması",
 	"ridge.PULSE.hint": "Vuruştaki sıraları aradakilerden biraz yüksek yapar; ritim araziden sana doğru yuvarlanır. Sıfır hepsini eşit tutar.",
+	"ridge.SKY": "göğün opaklığı",
+	"ridge.SKY.hint": "Sırtların üstündeki siyahın ne kadar dolu olduğu. 1'de gök siyahtır; azaltmak onu arkadaki sayfaya açar. Ufuk ışıltısı ve toz üstte çizili kalır.",
+	"ridge.BELOW": "şimdi çizgisinin altının opaklığı",
+	"ridge.BELOW.hint": "Şimdi çizgisinin altındaki siyahın ne kadar dolu olduğu. 1'de siyahtır; azaltmak o zemini sayfaya açar. Çoktan batmış sırtlar hâlâ üstüne çizilir.",
+	"ridge.UNDER": "sırtların altının opaklığı",
+	"ridge.UNDER.hint": "Her sırtın altındaki siyahın ne kadar dolu olduğu. Tepe çizgileri kalır. 1'de bir satır arkasındakini gizler; azaltmak sayfayı geçirir ve arkadaki sırtlar onunla görünür. Dolu şimdi çizgisi de bununla incelir. Dağların katılığı, bundan önce gövdenin ne kadar dolu olduğunu belirlemeye devam eder.",
 
 	"layers3d.ORBIT_RADIUS": "yörünge uzaklığı",
 	"layers3d.ORBIT_RADIUS.hint":

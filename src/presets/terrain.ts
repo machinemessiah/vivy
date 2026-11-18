@@ -8,7 +8,7 @@ import { createConductor } from "./conductor";
 import { accentLightness, colourSettings, familyHue, GREY, hslToRgb, palette, paletteAt } from "../colours";
 import { sampleCurve, segmentAt, TrackAudioData } from "../audio-data";
 import { Preset, PresetDefinition, publishDiagnostics } from "./types";
-import { tune, tuneFeatures, tuneVersion } from "./tune";
+import { toggleFeature, tune, tuneFeatures, tuneVersion } from "./tune";
 import { createTerrainRenderer, TerrainRenderer } from "./terrain-gl";
 
 // ---- the extras, in the order of their keys ---------------------------------------------------------
@@ -31,7 +31,7 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
 		const detail = (event as CustomEvent<{ preset: string | null; n: number } | null>).detail;
 		const feature = detail && detail.preset === terrainPreset.id ? FEATURE_KEYS[detail.n - 1] : undefined;
 		if (!feature) return;
-		feature.on = !feature.on;
+		toggleFeature(terrainPreset.id, feature);
 		if (typeof Spicetify !== "undefined") Spicetify.showNotification(`Terrain ${detail!.n}: ${feature.name} ${feature.on ? "ON" : "off"}`);
 	});
 }

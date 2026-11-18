@@ -1,12 +1,12 @@
 // Brightness, contrast, saturation and transparency of the whole picture, applied as CSS on the canvas.
 // At the defaults no style is set, so it costs nothing.
 
-export type Picture = { brightness: number; contrast: number; saturation: number; transparency: number };
+export type Picture = { brightness: number; contrast: number; saturation: number; transparency: number; scaleY: number };
 
-export const PICTURE_DEFAULTS: Picture = { brightness: 1, contrast: 1, saturation: 1, transparency: 0 };
+export const PICTURE_DEFAULTS: Picture = { brightness: 1, contrast: 1, saturation: 1, transparency: 0, scaleY: 1 };
 
 const STORAGE_KEY = "vivy:picture";
-export const PICTURE_RANGE: Record<keyof Picture, [number, number]> = { brightness: [0, 2], contrast: [0, 2], saturation: [0, 2], transparency: [0, 1] };
+export const PICTURE_RANGE: Record<keyof Picture, [number, number]> = { brightness: [0, 2], contrast: [0, 2], saturation: [0, 2], transparency: [0, 1], scaleY: [1, 2] };
 
 export function storedPicture(): Picture {
 	try {
@@ -59,7 +59,10 @@ function setContrastFilter(doc: Document, exponent: number) {
 
 export function refreshPicture() {
 	if (!target) return;
-	const { brightness, contrast, saturation, transparency } = picture;
+	const { brightness, contrast, saturation, transparency, scaleY } = picture;
+	// @why - 1 is the registered initial value, so the inline property can go and the canvas stays as drawn
+	if (scaleY === 1) target.canvas.style.removeProperty("--vivy-scale-y");
+	else target.canvas.style.setProperty("--vivy-scale-y", String(scaleY));
 	const parts: string[] = [];
 	if (brightness !== 1) parts.push(`brightness(${brightness})`);
 	if (contrast !== 1) {

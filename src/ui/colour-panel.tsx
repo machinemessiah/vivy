@@ -125,7 +125,7 @@ function Picker({ hex, onChange, onRemove, onClose, top, right }: {
 	);
 }
 
-const PICTURE_KNOBS: (keyof Picture)[] = ["brightness", "contrast", "saturation", "transparency"];
+const PICTURE_KNOBS: (keyof Picture)[] = ["brightness", "contrast", "saturation", "transparency", "scaleY"];
 
 const MODES: ColourMode[] = ["cover", "custom"];
 
@@ -273,7 +273,7 @@ export function PictureSection({ explain, unexplain }: Explain) {
 							value={value}
 							min={min}
 							max={max}
-							step={0.01}
+							step={key === "scaleY" ? 0.05 : 0.01}
 							coarse={(max - min) / 40}
 							def={PICTURE_DEFAULTS[key]}
 							display={value.toFixed(2)}

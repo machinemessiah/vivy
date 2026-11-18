@@ -9,7 +9,10 @@ export type Feature = { name: string; on: boolean };
 export type Tuning = { knobs: Knob[]; values: Record<string, number>; features: Feature[] };
 
 const STORE = "vivy:tune:";
+const FEATURE_STORE = "vivy:features:";
 const tunings = new Map<string, Tuning>();
+// the code default of each switch, taken before a saved choice replaces `on`
+const featureDefs = new WeakMap<Feature, boolean>();
 // bumped on every change, so a preset that caches what a knob shaped (a row, a table) knows to redo it
 let version = 0;
 export const tuneVersion = () => version;
@@ -63,11 +66,56 @@ export function tune<T extends Record<string, KnobSpec>>(
 	return values as { [K in keyof T]: number };
 }
 
-// on/off switches a preset already has (its number keys) shown in the panel too
+const loadFeatures = (preset: string): Record<string, [boolean, boolean]> => {
+	try {
+		return JSON.parse(localStorage.getItem(FEATURE_STORE + preset) ?? "{}") ?? {};
+	} catch {
+		return {};
+	}
+};
+// @what - remember switches that differ from the code default
+// @why - the same rule as a knob: a renamed effect, or one whose default changed, is dropped
+const saveFeatures = (preset: string) => {
+	const t = tunings.get(preset);
+	if (!t) return;
+	const moved: Record<string, [boolean, boolean]> = {};
+	for (const f of t.features) {
+		const def = featureDefs.get(f);
+		if (def === undefined || f.on === def) continue;
+		moved[f.name] = [f.on, def];
+	}
+	try {
+		localStorage.setItem(FEATURE_STORE + preset, JSON.stringify(moved));
+	} catch {
+		// storage denied: the switch still works, it is just forgotten on restart
+	}
+};
+
+// on/off switches a preset already has (its number keys) shown in the panel too.
+// A saved choice is kept only while the code's default is the one it was moved from.
 export function tuneFeatures(preset: string, features: Feature[]) {
+	const saved = loadFeatures(preset);
+	const names = new Set<string>();
+	let stale = false;
+	for (const f of features) {
+		const def = f.on;
+		featureDefs.set(f, def);
+		names.add(f.name);
+		const s = saved[f.name];
+		const kept = Array.isArray(s) && s[1] === def && typeof s[0] === "boolean";
+		// moved from a default the code no longer has: forgotten, or it returns when the default does
+		if (s !== undefined && !kept) stale = true;
+		if (kept) f.on = s[0];
+	}
 	const t = tunings.get(preset) ?? { knobs: [], values: {}, features: [] };
 	t.features = features;
 	tunings.set(preset, t);
+	if (stale || Object.keys(saved).some(name => !names.has(name))) saveFeatures(preset);
+}
+
+export function toggleFeature(preset: string, feature: Feature) {
+	feature.on = !feature.on;
+	saveFeatures(preset);
 }
 
 export const tuningOf = (preset: string) => tunings.get(preset);

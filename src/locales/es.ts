@@ -71,6 +71,8 @@ export const app: Record<string, string> = {
 	"picture.transparency": "transparencia",
 	"picture.transparency.hint":
 		"Aclara el negro bajo las líneas. Con un tema que tiene imagen, se ve la imagen a través; con el aspecto propio de Spotify, la portada desenfocada.",
+	"picture.scaleY": "escala vertical",
+	"picture.scaleY.hint": "Estira el lienzo en vertical desde abajo. 1 lo deja igual.",
 	"picture.foot": "Se aplica a todos los presets. Doble clic en el nombre para restablecer.",
 	"picture.reset": "Restablecer imagen",
 
@@ -134,6 +136,8 @@ export const app: Record<string, string> = {
 	"ridge.RIDGE.hint": "Lo altas que son las montañas. Más hace que los sonidos fuertes se eleven; menos aplana todo el paisaje.",
 	"ridge.HALF_WIDTH": "anchura del terreno",
 	"ridge.HALF_WIDTH.hint": "Lo ancho que es el terreno. Más abre las montañas; menos las junta hacia el centro.",
+	"ridge.FUNNEL": "estrechamiento del ancho",
+	"ridge.FUNNEL.hint": "Cuánto se abren las crestas hacia el horizonte. Cero mantiene la perspectiva de siempre, estrecha a lo lejos. Más abre las crestas lejanas hasta los bordes de la pantalla y estrecha la línea brillante; lo ya sonado vuelve a abrirse hacia abajo.",
 	"ridge.SIDE": "llano a los lados",
 	"ridge.SIDE.hint":
 		"Hasta dónde sigue el suelo llano a izquierda y derecha de las montañas antes de desvanecerse. Más da líneas planas más largas en los bordes.",
@@ -153,6 +157,8 @@ export const app: Record<string, string> = {
 	"ridge.LEAD_FULL.hint": "Lo grande que debe ser una subida que viene para que la vista se agache del todo antes. Menos la hace agacharse también en subidas pequeñas.",
 	"ridge.LANE_SPAN": "anchura de los carriles de notas",
 	"ridge.LANE_SPAN.hint": "Lo separadas que van las notas a lo ancho de una fila. Más reparte las montañas por todo el ancho; menos las agrupa en el centro.",
+	"ridge.POINTS": "puntos por fila",
+	"ridge.POINTS.hint": "Con cuántos puntos se dibuja cada fila. Más hace las filas más suaves; menos las hace más toscas.",
 	"ridge.HILL": "anchura de la colina de una nota",
 	"ridge.HILL.hint": "Lo ancha que es la colina de cada nota. Más da montañas anchas y onduladas que se funden; menos, picos finos y separados.",
 	"ridge.RIDGE_LIMIT": "altura antes de redondear",
@@ -191,8 +197,11 @@ export const app: Record<string, string> = {
 
 	"group.strands": "hebras",
 	"group.style": "estilo",
+	"group.opacity": "opacidad",
 	"ridge.8": "hebras de tono",
 	"ridge.9": "color por nota",
+	"ridge.10": "línea de ahora rellena",
+	"ridge.11": "copia girada",
 	"ridge.STRAND_SPREAD": "cuánto se abre una hebra",
 	"ridge.STRAND_SPREAD.hint": "Qué ancha es la hebra de cada nota (tecla 8). Cero conserva la colina estrecha de las montañas; más da lomas anchas que se solapan y se cruzan.",
 	"ridge.STRAND_WAVE": "cuánto suena una hebra como onda",
@@ -217,6 +226,12 @@ export const app: Record<string, string> = {
 	"ridge.LANE_ORDER.hint": "Dónde están las doce notas en el terreno. Cero es el círculo de quintas, así un acorde es una montaña; uno es por semitonos, y un acorde se reparte.",
 	"ridge.PULSE": "oleaje del compás en el terreno",
 	"ridge.PULSE.hint": "Hace las filas sobre el pulso algo más altas que las de en medio, y el compás rueda por el terreno hacia ti. Cero las deja iguales.",
+	"ridge.SKY": "opacidad del cielo",
+	"ridge.SKY.hint": "Qué sólido es el negro sobre las crestas. Con 1 el cielo es negro; menos lo abre a la página de detrás. El brillo del horizonte y el polvo siguen dibujados encima.",
+	"ridge.BELOW": "opacidad bajo la línea de ahora",
+	"ridge.BELOW.hint": "Qué sólido es el negro bajo la línea de ahora. Con 1 es negro; menos abre ese suelo a la página. Las crestas que ya se hundieron siguen dibujándose encima.",
+	"ridge.UNDER": "opacidad bajo las crestas",
+	"ridge.UNDER.hint": "Qué sólido es el negro bajo cada cresta. Las líneas de la cresta se quedan. Con 1 una fila oculta lo que hay detrás; menos deja pasar la página, y las crestas de atrás se transparentan con ella. La línea de ahora rellena también se adelgaza. La solidez de las montañas sigue fijando lo sólido que es el cuerpo antes de esto.",
 
 	"layers3d.ORBIT_RADIUS": "distancia de la órbita",
 	"layers3d.ORBIT_RADIUS.hint":

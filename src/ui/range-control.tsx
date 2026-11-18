@@ -1,8 +1,8 @@
 import React, { CSSProperties, useEffect, useRef } from "react";
 
 // A label is wide enough that its slider needs the whole row, not half of one.
-const WIDE_AT = 32 - 4;
-// @why - 32 is the label width, 4 is the longest value length
+const WIDE_AT = 32 - 5;
+// @why - 32 is the label width, 5 is the longest value length ([x][.][x][x][x])
 // @example - LABEL:[this should fit okay buuut if] VALUE:[2.36]
 // @note - the label is 29 chars, which is fine, but the value is 4 chars, which reults in a total of 33 chars, which is too wide for `WIDE_AT=32`
 
