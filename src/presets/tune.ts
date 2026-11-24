@@ -5,7 +5,8 @@
 export type KnobSpec = readonly [def: number, min: number, max: number, label: string, group?: string];
 // `basic`: a group that contains one starts open; a group with none starts closed
 export type Knob = { key: string; def: number; min: number; max: number; label: string; group: string; hint: string; basic: boolean };
-export type Feature = { name: string; on: boolean };
+// hides: knobs removed while the switch is on. shows: knobs removed until the switch is on.
+export type Feature = { name: string; on: boolean; hides?: string[]; shows?: string[] };
 export type Tuning = { knobs: Knob[]; values: Record<string, number>; features: Feature[] };
 
 const STORE = "vivy:tune:";

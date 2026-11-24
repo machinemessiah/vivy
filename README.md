@@ -12,6 +12,8 @@ The picture is driven by Spotify's audio analysis of the track (notes, beats, ba
 
 <p align="center"><img src="branding/screens/ridgeline.gif" alt="Ridgeline" width="80%"></p>
 
+**Ring** (experimental). Ridgeline bent until its ends meet. The bright line is a circle: what is coming shrinks toward the center, and what has just played sits outside it.
+
 **Drift** (experimental). Ribbons of light in a 3D cloud, one bright mark per sound.
 
 <p align="center"><img src="branding/screens/drift.png" alt="Drift" width="80%"></p>
@@ -63,14 +65,14 @@ To remove it, run `spicetify config custom_apps vivy-`, then `spicetify apply`, 
 | `F` | fullscreen (with a seek bar and previous / play / next) |
 | `P` | mini window (stays on top of other windows) |
 | `T` | sliders for the current preset |
-| `1`–`7` | Ridgeline: turn individual effects on/off |
+| `1`–`9` | Ridgeline and Ring: turn individual effects on/off |
 
 Mini window: drag it to move it, scroll or press `+` / `−` to resize it, `Esc` to close it.
 
 ## Notes
 
 - Local files, podcasts and ads have no analysis. For those, the picture follows a simple pulse instead.
-- Drift needs WebGL. Ridgeline doesn't.
+- Drift and Terrain need WebGL. Ridgeline and Ring don't.
 - Tested with Spicetify 2.45.1 on Windows. The analysis comes from an undocumented Spotify endpoint, so a Spotify update can break it.
 - vivy is vibe-coded: the code is written with an AI coding assistant, and what it should look like is decided by eye.
 

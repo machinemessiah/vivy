@@ -1,6 +1,6 @@
 # Architecture
 
-vivy is a Spicetify CustomApp: a page in the Spotify desktop client with a full-size canvas. It does not listen to audio. It reads Spotify's precomputed analysis of the track and draws from that timeline, so it can show what is coming as well as what is playing. Two presets ship: Ridgeline (`ridge`, Canvas 2D, the default) and Drift (`layers3d`, WebGL, marked experimental).
+vivy is a Spicetify CustomApp: a page in the Spotify desktop client with a full-size canvas. It does not listen to audio. It reads Spotify's precomputed analysis of the track and draws from that timeline, so it can show what is coming as well as what is playing. Ridgeline (`ridge`, Canvas 2D) is the default. Drift (`layers3d`, WebGL), Terrain (`terrain`, WebGL2) and Ring (`ring`, Canvas 2D) are experimental.
 
 `DATA.md` covers the analysis fields, how far each can be trusted and the signals derived from them. This file covers how the code is put together.
 
@@ -43,7 +43,7 @@ The extension for Spicy Lyrics calls `track-data.ts` and the presets directly, w
 | `src/presets/next-sound.ts` | the next sound's properties, for Drift |
 | `src/presets/tune.ts` | live knobs |
 | `src/i18n.ts`, `src/ui/text.ts`, `src/locales/*.ts` | the text: English, `t()`, and one table per language |
-| `src/presets/ridge.ts`, `layers3d.ts` | the two presets |
+| `src/presets/ridge.ts`, `ring.ts`, `layers3d.ts`, `terrain.ts` | the presets |
 
 ## Loading the analysis
 
@@ -129,7 +129,7 @@ Input. The canvas takes no mouse input. Keys, all ignored with ctrl, alt or meta
 | `F` | fullscreen on the container |
 | `P` | mini window |
 | `T` | knobs panel |
-| `1`-`9` | dispatches a `visualizer-feature` event with the current preset id and the number; Ridgeline listens |
+| `1`-`9` | dispatches a `visualizer-feature` event with the current preset id and the number; Ridgeline and Ring listen |
 | `B` | dev builds only: POSTs the numeric fields of `lastConducted`, track and position to the dev server's `/mark` |
 
 The top bar and the track overlay hide after 2.5 s without mouse activity. The progress readout updates every 500 ms.
@@ -208,6 +208,12 @@ Camera. Two eased levels drive it, both read off the timeline: `lately` (a follo
 Echoes. When a sound has just been played (the count of segments before the playhead goes up by one to three), the mountains as they stand are copied as an echo: a skin of additive light between the live line and where the mountains were, with an edge where it stands off the line. It lives `ECHO_BEATS` beats, swells by an amount between `ECHO_SWELL_SOFT` and `ECHO_SWELL_HARD` by the sound's loudness over `hitScale`, and at most `ECHO_MAX` live at once. Nothing echoes across a track change or seek.
 
 Finish. `createGlow` adds a tight core and a wide halo from the picture's bright parts; the halo's strength is `0.3 + energy * 0.6 + impact * 0.5`.
+
+## Ring (`ring.ts`)
+
+Ridgeline bent into a circle, and a fork of that file: the same rows, colours, echoes, strands and glow, drawn in polar coordinates. Experimental. Its knob text stays English until it settles (`UNTRANSLATED` in `check-presets.js`), the same as Terrain.
+
+The middle of a row sits at 12 o'clock and the old left and right ends meet at 6 o'clock. Depth is still time. The center is the horizon: a ring's radius is `Rnow * (1 + spread * (Z_NOW / z - 1))`, so at `z = Z_NOW` the radius is exactly the diameter knob, the future is smaller, and the past is larger. Peaks are added outward. An arc knob opens the circle down to a semicircle. The center glow is a disc. Sway slides each ring's center by depth, and bend twists the rings by an angle. The straight terrain's width taper, side run-out, horizon height and flipped copy are not carried.
 
 ## Drift (`layers3d.ts`)
 

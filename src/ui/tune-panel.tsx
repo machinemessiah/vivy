@@ -110,6 +110,7 @@ export function TunePanel({ presetId, onClose }: { presetId: string; onClose: ()
 	const knobControl = (k: Knob, span: 1 | 2) => {
 		const value = tuning!.values[k.key];
 		const range = k.max - k.min;
+		const by = k.key === "POINTS" ? 12 : k.key === "INVERT_EVERY_X_RINGS" ? 1 : 0;
 		return (
 			<RangeControl
 				key={k.key}
@@ -117,10 +118,10 @@ export function TunePanel({ presetId, onClose }: { presetId: string; onClose: ()
 				value={value}
 				min={k.min}
 				max={k.max}
-				step={k.key === "POINTS" ? 12 : range / 400}
-				coarse={k.key === "POINTS" ? 12 : range / 40}
+				step={by || range / 400}
+				coarse={by || range / 40}
 				def={k.def}
-				display={k.key === "POINTS" ? String(+value) : String(+value.toPrecision(3))}
+				display={by ? String(Math.round(value)) : String(+value.toPrecision(3))}
 				span={span}
 				onChange={n => (setKnob(presetId, k.key, n), refresh())}
 				onEnter={row => showHint(k, row)}
@@ -144,9 +145,15 @@ export function TunePanel({ presetId, onClose }: { presetId: string; onClose: ()
 	};
 	const presetGroups = () => {
 		if (!tuning) return null;
+		const hidden = new Set<string>();
+		for (const f of tuning.features) {
+			if (f.on && f.hides) for (const key of f.hides) hidden.add(key);
+			if (!f.on && f.shows) for (const key of f.shows) hidden.add(key);
+		}
 		const order: string[] = [];
 		const buckets = new Map<string, Knob[]>();
 		for (const k of tuning.knobs) {
+			if (hidden.has(k.key)) continue;
 			const name = k.group || "general";
 			if (!buckets.has(name)) {
 				order.push(name);

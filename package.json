@@ -5,7 +5,7 @@
   "repository": "github:wairence/vivy",
   "scripts": {
     "build": "npm run stamp && spicetify-creator",
-    "watch": "spicetify-creator --watch",
+    "watch": "spicetify-creator --watch --out=dist",
     "build-local": "spicetify-creator --out=dist --minify",
     "build-dev": "npm run stamp && spicetify-creator --out=dist",
     "build-dev-quiet": "node stamp.js --release && spicetify-creator --out=dist",

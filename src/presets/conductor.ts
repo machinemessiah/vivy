@@ -14,16 +14,16 @@ const smoothstep = (t: number) => {
 	return u * u * (3 - 2 * u);
 };
 // The wind-up before a drop lasts as long as the music's own lead-in; no fixed floor.
-const WINDUP_SPAN_MIN = 1.2;   // seconds of wind-up before the drop, at least
-const WINDUP_SPAN_MAX = 7;     // and at most - a run-up longer than this stops reading as one
-const WINDUP_HOLD = 1.9;       // the wind-up holds this long after the drop instead of dropping out
+const WINDUP_SPAN_MIN = 0.2; //1.2;   // seconds of wind-up before the drop, at least
+const WINDUP_SPAN_MAX = 0.7; //7;     // and at most - a run-up longer than this stops reading as one
+const WINDUP_HOLD = 0.9; //1.9;       // the wind-up holds this long after the drop instead of dropping out
 // Between tracks the level breathes out to GAP_REST; after GAP_HOLD seconds with no analysis the fallback pulse takes over.
 const GAP_REST = 0.12;
 const GAP_HOLD = 3;
 // how long the level takes to come round to a new track's own, seconds
 const JOIN_SECONDS = 1.5;
-const IMPACT_RISE = 0.7;       // brightness swells for this long into the moment
-const IMPACT_FALL = 1.8;       // and falls away over this long after it
+const IMPACT_RISE = 0.1; //0.7;       // brightness swells for this long into the moment
+const IMPACT_FALL = 0.1; //1.8;       // and falls away over this long after it
 
 // Shared plumbing for the presets: the Conductor turns a frame's audio analysis into eased signals.
 

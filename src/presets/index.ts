@@ -1,5 +1,7 @@
 import { layers3dPreset } from "./layers3d";
 import { ridgePreset } from "./ridge";
+import { ringPreset } from "./ring";
+import { ring2Preset } from "./ring2";
 import { terrainPreset } from "./terrain";
 import { PresetDefinition } from "./types";
 
@@ -9,6 +11,8 @@ import { PresetDefinition } from "./types";
 //              sound. (The id stays layers3d: saved choices and knobs are stored under it.)
 //   terrain    Terrain, experimental: the same song as one 3D landscape on the GPU (WebGL2), lit, with a line on every
 //              row and along every note's lane.
-export const PRESETS: PresetDefinition[] = [ridgePreset, layers3dPreset, terrainPreset];
+//   ring       Ring, experimental: Ridgeline bent until its ends meet. The bright line is a circle.
+//   ring2      Ring V2, experimental: the same rings, with the twelve pitches placed on the circle.
+export const PRESETS: PresetDefinition[] = [ridgePreset, /*layers3dPreset, terrainPreset,*/ ringPreset, ring2Preset];
 
 export type { Preset, PresetFrame, PresetDefinition } from "./types";
